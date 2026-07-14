@@ -1,41 +1,262 @@
 <template>
-  <div class="settings-page">
-    <div class="settings-header">
-      <input type="button" class="back-btn" value="◀" onclick="goBack" />
-      <text class="settings-title">Keyboard Settings</text>
+  <div class="page">
+    <!-- Back Button -->
+    <image 
+      src="../../common/left.png" 
+      class="back-btn" 
+      @click="goBack" />
+
+    <div class="header-bar">
+      <text class="current-time">{{currentTime}}</text>
+      <text class="app-title">Settings</text>
     </div>
 
-    <div class="menu-item {{currentType === 'QWERTY' ? 'selected-item' : ''}}" @click="updateType('QWERTY')">
-      <text class="menu-text">Full QWERTY Layout</text>
-      <text class="radio-indicator" if="{{currentType === 'QWERTY'}}">✓</text>
-    </div>
+    <!-- Settings Menu -->
+    <list class="settings-list">
+      
+      <!-- Keyboard Layout Section -->
+      <list-item class="section-header">
+        <text class="section-title">Input Method</text>
+      </list-item>
 
-    <div class="menu-item {{currentType === 'T9' ? 'selected-item' : ''}}" @click="updateType('T9')">
-      <text class="menu-text">Compact T9 Grid</text>
-      <text class="radio-indicator" if="{{currentType === 'T9'}}">✓</text>
-    </div>
+      <list-item 
+        class="setting-item {{keyboardType === 'QWERTY' ? 'selected-item' : ''}}"
+        @click="updateKeyboard('QWERTY')">
+        <div class="item-content">
+          <text class="item-label">QWERTY Keyboard</text>
+          <text class="item-desc">Full layout (recommended)</text>
+        </div>
+        <text class="check-mark" if="{{keyboardType === 'QWERTY'}}">✓</text>
+      </list-item>
+
+      <list-item 
+        class="setting-item {{keyboardType === 'T9' ? 'selected-item' : ''}}"
+        @click="updateKeyboard('T9')">
+        <div class="item-content">
+          <text class="item-label">T9 Grid</text>
+          <text class="item-desc">Compact layout</text>
+        </div>
+        <text class="check-mark" if="{{keyboardType === 'T9'}}">✓</text>
+      </list-item>
+
+      <!-- Search Settings Section -->
+      <list-item class="section-header">
+        <text class="section-title">Search Options</text>
+      </list-item>
+
+      <list-item 
+        class="setting-item {{maxResults === 10 ? 'selected-item' : ''}}"
+        @click="updateMaxResults(10)">
+        <div class="item-content">
+          <text class="item-label">Results per Search: 10</text>
+          <text class="item-desc">Standard (faster)</text>
+        </div>
+        <text class="check-mark" if="{{maxResults === 10}}">✓</text>
+      </list-item>
+
+      <list-item 
+        class="setting-item {{maxResults === 20 ? 'selected-item' : ''}}"
+        @click="updateMaxResults(20)">
+        <div class="item-content">
+          <text class="item-label">Results per Search: 20</text>
+          <text class="item-desc">More options</text>
+        </div>
+        <text class="check-mark" if="{{maxResults === 20}}">✓</text>
+      </list-item>
+
+      <!-- Theme Section -->
+      <list-item class="section-header">
+        <text class="section-title">Display</text>
+      </list-item>
+
+      <list-item 
+        class="setting-item {{theme === 'dark' ? 'selected-item' : ''}}"
+        @click="updateTheme('dark')">
+        <div class="item-content">
+          <text class="item-label">Dark Theme</text>
+          <text class="item-desc">Eye-friendly</text>
+        </div>
+        <text class="check-mark" if="{{theme === 'dark'}}">✓</text>
+      </list-item>
+
+      <list-item 
+        class="setting-item {{theme === 'amoled' ? 'selected-item' : ''}}"
+        @click="updateTheme('amoled')">
+        <div class="item-content">
+          <text class="item-label">AMOLED Theme</text>
+          <text class="item-desc">Pure black (battery save)</text>
+        </div>
+        <text class="check-mark" if="{{theme === 'amoled'}}">✓</text>
+      </list-item>
+
+      <!-- Cache Section -->
+      <list-item class="section-header">
+        <text class="section-title">Storage</text>
+      </list-item>
+
+      <list-item 
+        class="setting-item action-item"
+        @click="clearCache">
+        <div class="item-content">
+          <text class="item-label">Clear Cache</text>
+          <text class="item-desc">Free up {{cacheSize}}KB</text>
+        </div>
+        <text class="action-arrow">→</text>
+      </list-item>
+
+      <!-- About Section -->
+      <list-item class="section-header">
+        <text class="section-title">About</text>
+      </list-item>
+
+      <list-item class="setting-item">
+        <div class="item-content">
+          <text class="item-label">VelaWiki</text>
+          <text class="item-desc">v1.0.0</text>
+        </div>
+      </list-item>
+
+      <list-item class="setting-item">
+        <div class="item-content">
+          <text class="item-label">Device</text>
+          <text class="item-desc">Redmi Watch 5</text>
+        </div>
+      </list-item>
+
+    </list>
   </div>
 </template>
 
 <script>
 import router from '@system.router';
+import storage from '@system.storage';
+import prompt from '@system.prompt';
 
 export default {
   private: {
-    currentType: "QWERTY"
+    keyboardType: 'QWERTY',
+    maxResults: 10,
+    theme: 'dark',
+    cacheSize: 0,
+    currentTime: '00:00',
+    timerId: null
   },
+
   onInit() {
-    // Sync local active state with whatever is currently set globally
-    if (this.$app.$def.data && this.$app.$def.data.globalSettings) {
-      this.currentType = this.$app.$def.data.globalSettings.keyboardType;
+    this.updateTime();
+    this.timerId = setInterval(() => {
+      this.updateTime();
+    }, 1000);
+
+    this.loadSettings();
+    this.calculateCacheSize();
+  },
+
+  onDestroy() {
+    if (this.timerId) {
+      clearInterval(this.timerId);
     }
   },
-  updateType(selectedType) {
-    this.currentType = selectedType;
-    
-    // Core Step: Push the change directly to the global app memory block
-    this.$app.$def.data.globalSettings.keyboardType = selectedType;
+
+  updateTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    this.currentTime = `${hours}:${minutes}`;
   },
+
+  loadSettings() {
+    try {
+      const saved = storage.get('velawiki_settings');
+      if (saved) {
+        const settings = JSON.parse(saved);
+        this.keyboardType = settings.keyboardType || 'QWERTY';
+        this.maxResults = settings.maxResults || 10;
+        this.theme = settings.theme || 'dark';
+      }
+
+      if (this.$app && this.$app.$def && this.$app.$def.data && this.$app.$def.data.globalSettings) {
+        this.$app.$def.data.globalSettings.keyboardType = this.keyboardType;
+        this.$app.$def.data.globalSettings.maxResults = this.maxResults;
+        this.$app.$def.data.globalSettings.theme = this.theme;
+      }
+    } catch (e) {
+      console.log("Error loading settings: " + e);
+    }
+  },
+
+  updateKeyboard(type) {
+    this.keyboardType = type;
+    this.saveSettings();
+    prompt.showToast({
+      message: `Keyboard: ${type}`,
+      duration: 0.8
+    });
+  },
+
+  updateMaxResults(count) {
+    this.maxResults = count;
+    this.saveSettings();
+    prompt.showToast({
+      message: `Max results: ${count}`,
+      duration: 0.8
+    });
+  },
+
+  updateTheme(themeType) {
+    this.theme = themeType;
+    this.saveSettings();
+    prompt.showToast({
+      message: `Theme: ${themeType}`,
+      duration: 0.8
+    });
+  },
+
+  clearCache() {
+    try {
+      storage.clear();
+      this.cacheSize = 0;
+      prompt.showToast({
+        message: 'Cache cleared',
+        duration: 1
+      });
+    } catch (e) {
+      console.log("Error clearing cache: " + e);
+      prompt.showToast({
+        message: 'Error clearing cache',
+        duration: 1
+      });
+    }
+  },
+
+  calculateCacheSize() {
+    try {
+      const cached = storage.get('velawiki_cache') || '{}';
+      this.cacheSize = Math.ceil(JSON.stringify(cached).length / 1024);
+    } catch (e) {
+      this.cacheSize = 0;
+    }
+  },
+
+  saveSettings() {
+    try {
+      const settings = {
+        keyboardType: this.keyboardType,
+        maxResults: this.maxResults,
+        theme: this.theme
+      };
+      storage.set('velawiki_settings', JSON.stringify(settings));
+      
+      if (this.$app && this.$app.$def && this.$app.$def.data && this.$app.$def.data.globalSettings) {
+        this.$app.$def.data.globalSettings.keyboardType = this.keyboardType;
+        this.$app.$def.data.globalSettings.maxResults = this.maxResults;
+        this.$app.$def.data.globalSettings.theme = this.theme;
+      }
+    } catch (e) {
+      console.log("Error saving settings: " + e);
+    }
+  },
+
   goBack() {
     router.back();
   }
@@ -43,7 +264,8 @@ export default {
 </script>
 
 <style>
-.settings-page {
+.page {
+  position: relative;
   width: 480px;
   height: 480px;
   background-color: #000000;
@@ -53,57 +275,104 @@ export default {
   padding-top: 35px;
   box-sizing: border-box;
 }
-.settings-header {
+
+.back-btn {
+  position: absolute;
+  top: 40px;
+  left: 35px;
+  width: 50px;
+  height: 50px;
+}
+
+.header-bar {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
   width: 100%;
-  padding-left: 30px;
-  margin-bottom: 30px;
+  margin-bottom: 20px;
 }
-.back-btn {
-  width: 55px;
-  height: 55px;
-  background-color: #1A1A1A;
-  color: #E65100;
-  font-size: 20px;
+
+.current-time {
+  color: #888888;
+  font-size: 18px;
   font-weight: bold;
-  border-radius: 16px;
-  border: none;
+  margin-bottom: 2px;
 }
-.settings-title {
+
+.app-title {
   color: #FFFFFF;
   font-size: 26px;
   font-weight: bold;
-  margin-left: 20px;
 }
-.menu-item {
-  display: flex;
+
+.settings-list {
+  width: 450px;
+  max-height: 380px;
+  padding: 0 15px;
+}
+
+.section-header {
+  padding: 15px 0 8px 0;
+  background-color: transparent;
+  border: none;
+}
+
+.section-title {
+  color: #007AFF;
+  font-size: 14px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.setting-item {
   flex-direction: row;
-  justify-content: space-between;
   align-items: center;
-  width: 420px;
-  height: 85px;
-  background-color: #111111;
-  border-radius: 20px;
-  padding-left: 25px;
-  padding-right: 25px;
-  margin-bottom: 15px;
+  justify-content: space-between;
+  background-color: #0A0A0A;
   border: 1px solid #222222;
-  box-sizing: border-box;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 10px;
+  height: auto;
 }
+
 .selected-item {
-  border: 1px solid #E65100;
-  background-color: #1A0D04;
+  background-color: #1A1A2E;
+  border: 1px solid #007AFF;
 }
-.menu-text {
+
+.action-item {
+  cursor: pointer;
+}
+
+.item-content {
+  flex-direction: column;
+  width: 340px;
+}
+
+.item-label {
   color: #FFFFFF;
-  font-size: 22px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 2px;
 }
-.radio-indicator {
-  color: #E65100;
-  font-size: 24px;
+
+.item-desc {
+  color: #888888;
+  font-size: 12px;
+}
+
+.check-mark {
+  color: #007AFF;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.action-arrow {
+  color: #007AFF;
+  font-size: 18px;
   font-weight: bold;
 }
 </style>
