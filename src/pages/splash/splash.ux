@@ -1,0 +1,133 @@
+<template>
+    <div class="splash-container" @click="goToSearch">
+      
+      <div class="content-wrapper">
+        <image 
+          src="../../common/logo.png" 
+          class="splash-logo" />
+          
+        <text class="splash-title">VelaWiki</text>
+        <text class="splash-credit">By Emulator</text>
+      </div>
+  
+      <div class="info-container">
+        <text class="tooltip-text">Tap anywhere to skip</text>
+        <text class="timer-text">Redirecting in {{countdown}}s</text>
+      </div>
+  
+    </div>
+  </template>
+  
+  <script>
+  import router from '@system.router';
+  
+  export default {
+    private: {
+      countdown: 5, // Starts a clean 5-second countdown
+      timerId: null
+    },
+  
+    onShow() {
+      console.log("Splash Screen Shown");
+      this.startCountdown();
+    },
+  
+    onHide() {
+      this.clearTimer();
+    },
+  
+    onDestroy() {
+      this.clearTimer();
+    },
+  
+    startCountdown() {
+      this.clearTimer();
+      
+      // Smooth second tracker
+      this.timerId = setInterval(() => {
+        if (this.countdown > 1) {
+          this.countdown--;
+        } else {
+          this.goToSearch();
+        }
+      }, 1000);
+    },
+  
+    goToSearch() {
+      this.clearTimer();
+      console.log("Navigating to Search Home...");
+      router.replace({
+        uri: 'pages/search'
+      });
+    },
+  
+    clearTimer() {
+      if (this.timerId) {
+        clearInterval(this.timerId);
+        this.timerId = null;
+      }
+    }
+  };
+  </script>
+  
+  <style>
+  .splash-container {
+    width: 480px;
+    height: 480px;
+    background-color: #000000;
+    flex-direction: column;
+    justify-content: space-between; /* Evenly splits the vertical screen layout */
+    align-items: center;
+    padding-top: 60px;
+    padding-bottom: 50px;
+    box-sizing: border-box;
+  }
+  
+  .content-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .splash-logo {
+    width: 140px;
+    height: 140px;
+    margin-bottom: 15px;
+    border-radius: 32px;
+  }
+  
+  .splash-title {
+    color: #FFFFFF;
+    font-size: 38px;
+    font-weight: bold;
+    margin-bottom: 2px;
+  }
+  
+  .splash-credit {
+    color: #888888;
+    font-size: 20px;
+    font-weight: bold;
+  }
+  
+  .info-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .tooltip-text {
+    color: #007AFF; /* Interactive Accent Color */
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 6px;
+  }
+  
+  .timer-text {
+    color: #444444; /* Low-priority secondary text */
+    font-size: 16px;
+  }
+  </style>

@@ -1,0 +1,13 @@
+<script>
+export default {
+  // Global data storage accessible by all pages
+  data: {
+    globalSettings: {
+      keyboardType: "QWERTY" // Default value on startup
+    }
+  },
+  onCreate() {
+    console.log("Global application state initialized.");
+  }
+};
+</script>

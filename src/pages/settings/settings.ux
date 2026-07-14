@@ -1,0 +1,109 @@
+<template>
+  <div class="settings-page">
+    <div class="settings-header">
+      <input type="button" class="back-btn" value="◀" onclick="goBack" />
+      <text class="settings-title">Keyboard Settings</text>
+    </div>
+
+    <div class="menu-item {{currentType === 'QWERTY' ? 'selected-item' : ''}}" @click="updateType('QWERTY')">
+      <text class="menu-text">Full QWERTY Layout</text>
+      <text class="radio-indicator" if="{{currentType === 'QWERTY'}}">✓</text>
+    </div>
+
+    <div class="menu-item {{currentType === 'T9' ? 'selected-item' : ''}}" @click="updateType('T9')">
+      <text class="menu-text">Compact T9 Grid</text>
+      <text class="radio-indicator" if="{{currentType === 'T9'}}">✓</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router';
+
+export default {
+  private: {
+    currentType: "QWERTY"
+  },
+  onInit() {
+    // Sync local active state with whatever is currently set globally
+    if (this.$app.$def.data && this.$app.$def.data.globalSettings) {
+      this.currentType = this.$app.$def.data.globalSettings.keyboardType;
+    }
+  },
+  updateType(selectedType) {
+    this.currentType = selectedType;
+    
+    // Core Step: Push the change directly to the global app memory block
+    this.$app.$def.data.globalSettings.keyboardType = selectedType;
+  },
+  goBack() {
+    router.back();
+  }
+};
+</script>
+
+<style>
+.settings-page {
+  width: 480px;
+  height: 480px;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 35px;
+  box-sizing: border-box;
+}
+.settings-header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  padding-left: 30px;
+  margin-bottom: 30px;
+}
+.back-btn {
+  width: 55px;
+  height: 55px;
+  background-color: #1A1A1A;
+  color: #E65100;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 16px;
+  border: none;
+}
+.settings-title {
+  color: #FFFFFF;
+  font-size: 26px;
+  font-weight: bold;
+  margin-left: 20px;
+}
+.menu-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 420px;
+  height: 85px;
+  background-color: #111111;
+  border-radius: 20px;
+  padding-left: 25px;
+  padding-right: 25px;
+  margin-bottom: 15px;
+  border: 1px solid #222222;
+  box-sizing: border-box;
+}
+.selected-item {
+  border: 1px solid #E65100;
+  background-color: #1A0D04;
+}
+.menu-text {
+  color: #FFFFFF;
+  font-size: 22px;
+  font-weight: 500;
+}
+.radio-indicator {
+  color: #E65100;
+  font-size: 24px;
+  font-weight: bold;
+}
+</style>

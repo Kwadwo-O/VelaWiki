@@ -1,0 +1,285 @@
+<template>
+  <div class="keyboard-page" show="{{!hide}}">
+    <div class="keyboard-container">
+      
+      <div class="keyboard-row">
+        <text 
+          class="key-item" 
+          for="{{char in activeRow1}}" 
+          @click="pressKey(char)">
+          {{char}}
+        </text>
+      </div>
+
+      <div class="keyboard-row">
+        <div class="row2-spacer"></div>
+        <text 
+          class="key-item" 
+          for="{{char in activeRow2}}" 
+          @click="pressKey(char)">
+          {{char}}
+        </text>
+        <div class="row2-spacer"></div>
+      </div>
+
+      <div class="keyboard-row">
+        <text 
+          if="{{!numFlag}}"
+          class="key-item key-item-special key-item-shift {{upperFlag ? 'key-item-shift-active' : ''}}" 
+          @click="toggleShift">
+          Shift
+        </text>
+        <text 
+          if="{{numFlag}}"
+          class="key-item key-item-special key-item-sympage" 
+          @click="toggleSymbolPage">
+          {{symPageFlag ? '1/2' : '2/2'}}
+        </text>
+
+        <text 
+          class="key-item" 
+          for="{{char in activeRow3}}" 
+          @click="pressKey(char)">
+          {{char}}
+        </text>
+
+        <text 
+          class="key-item key-item-special key-item-del" 
+          @click="pressBackspace">
+          Del
+        </text>
+      </div>
+
+      <div class="keyboard-row">
+        <text 
+          class="key-item key-item-special key-item-ctrl" 
+          @click="toggleNum">
+          {{numFlag ? 'ABC' : '?123'}}
+        </text>
+
+        <text 
+          class="key-item key-item-space" 
+          @click="pressSpace">
+          Space
+        </text>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<script>
+import vibrator from "@system.vibrator";
+
+export default {
+  props: {
+    hide: {
+      default: true,
+    },
+    keyboardtype: {
+      default: "QWERTY",
+    },
+    maxlength: {
+      default: 5,
+    },
+    vibratemode: {
+      default: "short",
+    },
+    screentype: {
+      default: "rect",
+    },
+  },
+  
+  data: {
+    upperFlag: false,
+    numFlag: false,
+    symPageFlag: false,
+
+    activeRow1: [],
+    activeRow2: [],
+    activeRow3: [],
+
+    row1_lower: ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"],
+    row1_upper: ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+    row2_lower: ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+    row2_upper: ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+    row3_lower: ["z", "x", "c", "v", "b", "n", "m"],
+    row3_upper: ["Z", "X", "C", "V", "B", "N", "M"],
+
+    row1_num: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"],
+    row2_num: ["-", "/", ":", ";", "(", ")", "$", "&", "@", "\""],
+    row3_num_p1: [".", ",", "?", "!", "'", "_", "-"],
+    row3_num_p2: ["[", "]", "{", "}", "#", "%", "^"]
+  },
+
+  onInit() {
+    this.updateKeyboardLayout();
+  },
+
+  updateKeyboardLayout() {
+    if (this.numFlag) {
+      this.activeRow1 = this.row1_num;
+      this.activeRow2 = this.row2_num;
+      this.activeRow3 = this.symPageFlag ? this.row3_num_p2 : this.row3_num_p1;
+    } else {
+      if (this.upperFlag) {
+        this.activeRow1 = this.row1_upper;
+        this.activeRow2 = this.row2_upper;
+        this.activeRow3 = this.row3_upper;
+      } else {
+        this.activeRow1 = this.row1_lower;
+        this.activeRow2 = this.row2_lower;
+        this.activeRow3 = this.row3_lower;
+      }
+    }
+  },
+
+  pressKey(char) {
+    this.onVibrate();
+    this.$emit("key-down", { content: char });
+    this.$emit("complete", { content: char });
+  },
+
+  pressSpace() {
+    this.onVibrate();
+    this.$emit("key-down", { content: " " });
+    this.$emit("complete", { content: " " });
+  },
+
+  pressBackspace() {
+    this.onVibrate();
+    this.$emit("delete", {});
+  },
+
+  toggleShift() {
+    this.onVibrate();
+    this.upperFlag = !this.upperFlag;
+    this.updateKeyboardLayout();
+  },
+
+  toggleNum() {
+    this.onVibrate();
+    this.numFlag = !this.numFlag;
+    this.symPageFlag = false;
+    this.updateKeyboardLayout();
+  },
+
+  toggleSymbolPage() {
+    this.onVibrate();
+    this.symPageFlag = !this.symPageFlag;
+    this.updateKeyboardLayout();
+  },
+
+  onVibrate() {
+    if (this.vibratemode && this.vibratemode !== "") {
+      try {
+        vibrator.vibrate({ mode: this.vibratemode });
+      } catch (err) {
+        console.log("Vibration feedback error: " + err.message);
+      }
+    }
+  }
+};
+</script>
+
+<style>
+/* 240px Absolute Container [cite: 23] */
+.keyboard-page {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 480px;
+  height: 240px;
+}
+
+/* Base layout settings [cite: 24, 25] */
+.keyboard-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 480px;
+  height: 240px;
+  background-color: #0c0c0c;
+  border-top: 1px solid #1a1a1a;
+  padding: 5px 2px;
+  box-sizing: border-box;
+}
+
+/* Individual Row Sizing [cite: 26] */
+.keyboard-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 55px;
+}
+
+/* Key Styling [cite: 27, 28] */
+.key-item {
+  flex: 1;
+  background-color: #222225;
+  color: #ffffff;
+  font-size: 21px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 47px;
+  height: 47px;
+  margin: 0px 2px;
+  border-radius: 6px;
+  border: 1px solid #2a2a2f;
+}
+
+/* Special button defaults [cite: 29] */
+.key-item-special {
+  flex: 1.5;
+  background-color: #161618;
+  color: #cccccc;
+  font-size: 16px;
+}
+
+/* Blue shift color for inactive, bright highlighted blue for active [cite: 30] */
+.key-item-shift {
+  background-color: #16243a;
+  color: #3897ff;
+  border: 1px solid #1d3c63;
+}
+.key-item-shift-active {
+  background-color: #007aff;
+  color: #ffffff;
+  border: 1px solid #3399ff;
+}
+
+/* Warning crimson background for the delete action */
+.key-item-del {
+  background-color: #3d1b1f;
+  color: #ff4554;
+  border: 1px solid #631e26;
+}
+
+/* Highlighted Symbol Pages toggle */
+.key-item-sympage {
+  background-color: #251d3a;
+  color: #b083ff;
+  border: 1px solid #3b2c61;
+}
+
+/* Quick Toggle control (?123 / ABC) [cite: 31] */
+.key-item-ctrl {
+  flex: 2.5;
+  color: #007aff;
+  font-size: 18px;
+}
+
+/* Spacebar [cite: 32] */
+.key-item-space {
+  flex: 7.5;
+  background-color: #222225;
+  color: #888888;
+  font-size: 18px;
+}
+
+.row2-spacer {
+  flex: 0.5;
+}
+</style>
