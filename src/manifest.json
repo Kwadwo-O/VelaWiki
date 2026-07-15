@@ -53,6 +53,9 @@
 	},
 	"pages/results": {
 		"component": "results"
+	},
+	"pages/article": {
+		"component": "article"
 	}
 }
 	}

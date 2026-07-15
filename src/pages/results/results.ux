@@ -2,49 +2,32 @@
   <div class="page">
     <div class="header-bar">
       <text class="current-time">{{currentTime}}</text>
-      <text class="app-title" if="{{viewMode === 'search'}}">Search Results</text>
-      <text class="app-title" if="{{viewMode === 'links'}}">{{currentArticleTitle}}</text>
+      <text class="app-title">Search Results</text>
     </div>
 
-    <!-- Back Navigation -->
     <div class="nav-buttons">
-      <text 
-        class="nav-btn" 
-        @click="goBack">
-        ← Back
-      </text>
+      <text class="nav-btn" @click="goBack">← Back</text>
     </div>
 
-    <!-- Search Query Display -->
-    <div class="query-display" if="{{viewMode === 'search'}}">
+    <div class="query-display">
       <text class="query-text">Query: {{query}}</text>
     </div>
 
-    <!-- Loading State -->
     <div class="loading-container" if="{{isLoading}}">
-      <text class="loading-text">Loading...</text>
+      <text class="loading-text">Searching Wikipedia...</text>
     </div>
 
-    <!-- Error State -->
     <div class="error-container" if="{{errorMessage !== '' && !isLoading}}">
       <text class="error-text">{{errorMessage}}</text>
-      <text 
-        class="retry-button" 
-        @click="retryAction">
-        Retry
-      </text>
+      <text class="retry-button" @click="fetchResults">Retry</text>
     </div>
 
-    <!-- Search Results List -->
-    <list 
-      class="results-list" 
-      if="{{!isLoading && errorMessage === '' && viewMode === 'search'}}">
-      <list-item 
-        type="result-item" 
-        class="result-item" 
-        for="{{item in results}}" 
-        @click="loadLinkedArticles(item.pageid, item.title)">
-        
+    <list class="results-list" if="{{!isLoading && errorMessage === ''}}">
+      <list-item
+        type="result-item"
+        class="result-item"
+        for="{{item in results}}"
+        @click="openArticle(item)">
         <text class="result-number">{{$idx + 1}}.</text>
         <div class="result-info">
           <text class="result-title">{{item.title}}</text>
@@ -52,385 +35,297 @@
         </div>
       </list-item>
     </list>
-
-    <!-- Linked Articles List -->
-    <list 
-      class="results-list" 
-      if="{{!isLoading && errorMessage === '' && viewMode === 'links'}}">
-      <list-item 
-        type="link-item" 
-        class="link-item" 
-        for="{{item in linkedArticles}}" 
-        @click="openArticleDetail(item.title)">
-        
-        <text class="result-number">•</text>
-        <div class="result-info">
-          <text class="result-title">{{item.title}}</text>
-        </div>
-      </list-item>
-    </list>
-
   </div>
 </template>
-  
-  <script>
-  import fetch from '@system.fetch';
-  import router from '@system.router';
-  import prompt from '@system.prompt';
-  import vibrator from '@system.vibrator';
-  
-  export default {
-    protected: {
-      query: '' 
-    },
-    
-    private: {
-      results: [],
-      linkedArticles: [],
-      isLoading: false,
-      errorMessage: '',
-      viewMode: 'search',
-      currentArticleTitle: '',
-      currentTime: '00:00',
-      timerId: null,
-      retryCallback: null
-    },
-  
-    onInit() {
+
+<script>
+import fetch from '@system.fetch';
+import router from '@system.router';
+import vibrator from '@system.vibrator';
+
+export default {
+  protected: {
+    query: ''
+  },
+
+  private: {
+    results: [],
+    isLoading: false,
+    errorMessage: '',
+    currentTime: '00:00',
+    timerId: null
+  },
+
+  onInit() {
+    this.updateTime();
+    this.timerId = setInterval(() => {
       this.updateTime();
-      this.timerId = setInterval(() => {
-        this.updateTime();
-      }, 1000);
-      
-      this.fetchResults();
-    },
+    }, 1000);
 
-    onDestroy() {
-      if (this.timerId) {
-        clearInterval(this.timerId);
-      }
-    },
+    this.fetchResults();
+  },
 
-    updateTime() {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      this.currentTime = `${hours}:${minutes}`;
-    },
-  
-    fetchResults() {
-      this.isLoading = true;
-      this.errorMessage = '';
-      this.retryCallback = () => this.fetchResults();
-      
-      const encodedQuery = encodeURIComponent(this.query);
-      const url = `http://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodedQuery}&prop=extracts&exintro=1&explaintext=1&exchars=120&exlimit=max&format=json`;
-  
-      console.log("Fetching: " + url);
-      
-      fetch.fetch({
-        url: url,
-        method: 'GET',
-        success: (res) => {
-          console.log("Got response");
-          try {
-            const data = JSON.parse(res.data);
-            console.log("Parsed: " + JSON.stringify(data));
-            
-            if (data.query && data.query.pages) {
-              const pagesObj = data.query.pages;
-              const parsedResults = [];
-              
-              for (let key in pagesObj) {
-                if (Object.prototype.hasOwnProperty.call(pagesObj, key)) {
-                  const page = pagesObj[key];
-                  let cleanSnippet = (page.extract || "No description").replace(/<\/?[^>]+(>|$)/g, "");
-                  cleanSnippet = cleanSnippet.replace(/&quot;/g, '"').replace(/&amp;/g, '&').slice(0, 100);
-                  
-                  parsedResults.push({
-                    title: page.title,
-                    snippet: cleanSnippet,
-                    pageid: page.pageid
-                  });
-                }
-              }
-              
-              if (parsedResults.length > 0) {
-                this.results = parsedResults.slice(0, 10);
-                this.errorMessage = '';
-              } else {
-                this.errorMessage = "No results found";
-              }
-            } else {
-              this.errorMessage = "No results found";
-            }
-            this.isLoading = false;
-          } catch (e) {
-            console.log("Error parsing: " + e);
-            this.errorMessage = "Parse error: " + e;
-            this.isLoading = false;
-          }
-        },
-        fail: (err) => {
-          console.log("Fetch failed: " + JSON.stringify(err));
-          this.errorMessage = "Check WiFi & internet connection";
-          this.isLoading = false;
-        }
-      });
-    },
-  
-    loadLinkedArticles(pageid, title) {
-      this.vibrate();
-      this.isLoading = true;
-      this.errorMessage = '';
-      this.currentArticleTitle = title;
-      this.retryCallback = () => this.loadLinkedArticles(pageid, title);
-      
-      const url = `http://en.wikipedia.org/w/api.php?action=query&pageids=${pageid}&prop=links&pllimit=30&format=json`;
-  
-      console.log("Fetching links: " + url);
-      
-      fetch.fetch({
-        url: url,
-        method: 'GET',
-        success: (res) => {
-          console.log("Got links response");
-          try {
-            const data = JSON.parse(res.data);
-            
-            if (data.query && data.query.pages) {
-              const pages = data.query.pages;
-              let links = [];
-              
-              for (let key in pages) {
-                if (Object.prototype.hasOwnProperty.call(pages, key) && pages[key].links) {
-                  links = pages[key].links;
-                  break;
-                }
-              }
-              
-              if (links && links.length > 0) {
-                this.linkedArticles = links.slice(0, 15).map(link => ({
-                  title: link.title,
-                  pageid: link.pageid || 0
-                }));
-                this.viewMode = 'links';
-                this.errorMessage = '';
-              } else {
-                this.errorMessage = "No related articles";
-              }
-            } else {
-              this.errorMessage = "No related articles";
-            }
-            this.isLoading = false;
-          } catch (e) {
-            console.log("Error: " + e);
-            this.errorMessage = "Parse error: " + e;
-            this.isLoading = false;
-          }
-        },
-        fail: (err) => {
-          console.log("Links fetch failed");
-          this.errorMessage = "Connection failed";
-          this.isLoading = false;
-        }
-      });
-    },
-  
-    openArticleDetail(title) {
-      this.vibrate();
-      prompt.showToast({
-        message: title,
-        duration: 1
-      });
-    },
-  
-    retryAction() {
-      if (this.retryCallback) {
-        this.retryCallback();
-      }
-    },
-  
-    goBack() {
-      this.vibrate();
-      if (this.viewMode === 'links') {
-        this.viewMode = 'search';
-        this.errorMessage = '';
-      } else {
-        router.back();
-      }
-    },
-
-    vibrate() {
-      if (vibrator.vibrate) {
-        try { vibrator.vibrate({ mode: "short" }); } catch(e){}
-      }
+  onDestroy() {
+    if (this.timerId) {
+      clearInterval(this.timerId);
     }
-  };
-  </script>
-  
-  <style>
-  .page {
-    position: relative;
-    width: 480px;
-    height: 480px;
-    background-color: #000000;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    padding-top: 35px;
-    box-sizing: border-box;
-  }
+  },
 
-  /* Back Button - text-based */
-  .nav-buttons {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    margin-bottom: 15px;
-  }
+  updateTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    this.currentTime = `${hours}:${minutes}`;
+  },
 
-  .nav-btn {
-    color: #007AFF;
-    font-size: 18px;
-    font-weight: bold;
-    background-color: #1A1A1A;
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1px solid #333333;
-  }
+  getMaxResults() {
+    const settings = this.$app && this.$app.$def && this.$app.$def.data
+      ? this.$app.$def.data.globalSettings
+      : null;
+    return settings && settings.maxResults ? settings.maxResults : 10;
+  },
 
-  .header-bar {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    margin-bottom: 15px;
-  }
+  cleanSnippet(raw) {
+    if (!raw) {
+      return 'No summary available.';
+    }
+    return raw
+      .replace(/<\/?[^>]+(>|$)/g, '')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
 
-  .current-time {
-    color: #888888;
-    font-size: 20px;
-    font-weight: bold;
-    margin-bottom: 2px;
-  }
+  fetchResults() {
+    const q = (this.query || '').trim();
+    if (!q) {
+      return;
+    }
 
-  .app-title {
-    color: #FFFFFF;
-    font-size: 24px;
-    font-weight: bold;
-  }
+    const maxResults = this.getMaxResults();
+    this.isLoading = true;
+    this.errorMessage = '';
 
-  .query-display {
-    width: 420px;
-    text-align: center;
-    margin-bottom: 15px;
-  }
+    const encodedQuery = encodeURIComponent(q);
+    const url =
+      `https://en.wikipedia.org/api/rest_v1/search/title?q=${encodedQuery}` +
+      `&limit=${maxResults}`;
 
-  .query-text {
-    color: #AAAAAA;
-    font-size: 14px;
-    font-weight: bold;
-  }
+    fetch.fetch({
+      url: url,
+      method: 'GET',
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data);
+          const searchList = data && data.pages ? data.pages : [];
+          if (!searchList.length) {
+            this.results = [];
+            this.errorMessage = 'No results found.';
+          } else {
+            const parsed = searchList.map(item => ({
+              title: item.title,
+              pageid: item.id,
+              key: item.key || item.title,
+              snippet: this.cleanSnippet(item.description || item.excerpt || '')
+            }));
+            this.results = parsed;
+            this.errorMessage = '';
+          }
+        } catch (e) {
+          this.errorMessage = 'Failed to read search results.';
+        } finally {
+          this.isLoading = false;
+        }
+      },
+      fail: () => {
+        this.isLoading = false;
+        this.errorMessage = 'Network error. Check WiFi.';
+      }
+    });
+  },
 
-  .loading-container {
-    width: 100%;
-    height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-  }
+  openArticle(item) {
+    this.vibrate();
+    router.push({
+      uri: 'pages/article',
+      params: {
+        title: item.title,
+        pageid: item.pageid,
+        key: item.key || item.title,
+        query: this.query
+      }
+    });
+  },
 
-  .loading-text {
-    color: #007AFF;
-    font-size: 24px;
-    font-weight: bold;
-  }
+  goBack() {
+    this.vibrate();
+    router.back();
+  },
 
-  .error-container {
-    width: 100%;
-    height: 300px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 30px;
-    box-sizing: border-box;
+  vibrate() {
+    if (vibrator.vibrate) {
+      try {
+        vibrator.vibrate({ mode: 'short' });
+      } catch (e) {}
+    }
   }
+};
+</script>
 
-  .error-text {
-    color: #FF4554;
-    font-size: 18px;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 20px;
-  }
+<style>
+.page {
+  position: relative;
+  width: 480px;
+  height: 480px;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 35px;
+  box-sizing: border-box;
+}
 
-  .retry-button {
-    color: #FFFFFF;
-    font-size: 18px;
-    font-weight: bold;
-    background-color: #007AFF;
-    padding: 10px 24px;
-    border-radius: 20px;
-    text-align: center;
-  }
+.nav-buttons {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
 
-  .results-list {
-    width: 450px;
-    max-height: 300px;
-    padding: 0 15px;
-  }
+.nav-btn {
+  color: #007AFF;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #1A1A1A;
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid #333333;
+}
 
-  .result-item {
-    flex-direction: row;
-    align-items: flex-start;
-    margin-bottom: 12px;
-    padding: 12px;
-    background-color: #0A0A0A;
-    border-radius: 12px;
-    border: 1px solid #222222;
-  }
+.header-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 15px;
+}
 
-  .result-number {
-    color: #007AFF;
-    font-size: 14px;
-    font-weight: bold;
-    margin-right: 8px;
-    width: 20px;
-  }
+.current-time {
+  color: #888888;
+  font-size: 20px;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
 
-  .result-info {
-    flex-direction: column;
-    width: 380px;
-  }
+.app-title {
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: bold;
+}
 
-  .result-title {
-    color: #FFFFFF;
-    font-size: 16px;
-    font-weight: bold;
-    margin-bottom: 4px;
-    lines: 1;
-    text-overflow: ellipsis;
-  }
+.query-display {
+  width: 420px;
+  text-align: center;
+  margin-bottom: 15px;
+}
 
-  .result-desc {
-    color: #888888;
-    font-size: 13px;
-    lines: 2;
-    text-overflow: ellipsis;
-  }
+.query-text {
+  color: #AAAAAA;
+  font-size: 14px;
+  font-weight: bold;
+}
 
-  .link-item {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: 10px;
-    padding: 10px;
-    background-color: #0A0A0A;
-    border-radius: 12px;
-    border: 1px solid #222222;
-  }
+.loading-container {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
 
-  </style>
+.loading-text {
+  color: #007AFF;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.error-container {
+  width: 100%;
+  height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  box-sizing: border-box;
+}
+
+.error-text {
+  color: #FF4554;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.retry-button {
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #007AFF;
+  padding: 10px 24px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+.results-list {
+  width: 450px;
+  max-height: 300px;
+  padding: 0 15px;
+}
+
+.result-item {
+  flex-direction: row;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  padding: 12px;
+  background-color: #0A0A0A;
+  border-radius: 12px;
+  border: 1px solid #222222;
+}
+
+.result-number {
+  color: #007AFF;
+  font-size: 14px;
+  font-weight: bold;
+  margin-right: 8px;
+  width: 20px;
+}
+
+.result-info {
+  flex-direction: column;
+  width: 380px;
+}
+
+.result-title {
+  color: #FFFFFF;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 4px;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.result-desc {
+  color: #888888;
+  font-size: 13px;
+  lines: 2;
+  text-overflow: ellipsis;
+}
+</style>

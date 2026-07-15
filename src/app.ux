@@ -3,7 +3,9 @@ export default {
   // Global data storage accessible by all pages
   data: {
     globalSettings: {
-      keyboardType: "QWERTY" // Default value on startup
+      keyboardType: "QWERTY",
+      maxResults: 10,
+      theme: "dark"
     }
   },
   onCreate() {

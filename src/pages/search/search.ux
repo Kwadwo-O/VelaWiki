@@ -32,7 +32,7 @@
     <input-method
       hide="{{ hide }}"
       keyboardtype="qwerty"
-      maxlength="5"
+      maxlength="24"
       screentype="{{screentype}}"
       @delete="onDelete"
       @complete="onComplete"
@@ -81,12 +81,12 @@ export default {
   },
 
   onComplete(evt) {
-    if (this.textValue.length < 5) {
+    if (this.textValue.length < 24) {
       this.textValue += evt.detail.content;
       console.log("Returned character: " + JSON.stringify(evt));
     } else {
       prompt.showToast({
-        message: 'Max length reached',
+        message: 'Max 24 chars',
         duration: 0.5
       });
     }
@@ -124,7 +124,7 @@ export default {
 
   goBack() {
     console.log("Going back...");
-    router.back();
+    this.$app.exit()
   }
 };
 </script>

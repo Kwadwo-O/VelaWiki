@@ -1,0 +1,259 @@
+<template>
+  <div class="page">
+    <image
+      src="../../common/left.png"
+      class="back-btn"
+      @click="goBack" />
+
+    <div class="header-bar">
+      <text class="current-time">{{currentTime}}</text>
+      <text class="app-title">Article</text>
+    </div>
+
+    <div class="title-card">
+      <text class="title-text">{{title}}</text>
+    </div>
+
+    <div class="loading-container" if="{{isLoading}}">
+      <text class="loading-text">Loading article...</text>
+    </div>
+
+    <div class="error-container" if="{{errorMessage !== '' && !isLoading}}">
+      <text class="error-text">{{errorMessage}}</text>
+      <text class="retry-button" @click="fetchArticle">Retry</text>
+    </div>
+
+    <list class="article-list" if="{{!isLoading && errorMessage === ''}}">
+      <list-item type="article-card" class="article-card">
+        <text class="article-content">{{articleText}}</text>
+      </list-item>
+    </list>
+  </div>
+</template>
+
+<script>
+import fetch from '@system.fetch';
+import router from '@system.router';
+import vibrator from '@system.vibrator';
+
+export default {
+  protected: {
+    title: '',
+    pageid: 0,
+    key: '',
+    query: ''
+  },
+
+  private: {
+    isLoading: false,
+    errorMessage: '',
+    articleText: '',
+    currentTime: '00:00',
+    timerId: null
+  },
+
+  onInit() {
+    this.updateTime();
+    this.timerId = setInterval(() => {
+      this.updateTime();
+    }, 1000);
+    this.fetchArticle();
+  },
+
+  onDestroy() {
+    if (this.timerId) {
+      clearInterval(this.timerId);
+    }
+  },
+
+  updateTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    this.currentTime = `${hours}:${minutes}`;
+  },
+
+  cleanText(raw) {
+    if (!raw) {
+      return 'No content available for this article.';
+    }
+    return raw
+      .replace(/<\/?[^>]+(>|$)/g, '')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\s+/g, ' ')
+      .trim();
+  },
+
+  fetchArticle() {
+    const title = (this.title || '').trim();
+    const pageKey = (this.key || title).trim();
+    if (!pageKey) {
+      this.errorMessage = 'Article not found.';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    const url = `https://en.wikipedia.org/api/rest_v1/page/${encodeURIComponent(pageKey)}/summary`;
+
+    fetch.fetch({
+      url: url,
+      method: 'GET',
+      success: (res) => {
+        try {
+          const data = JSON.parse(res.data);
+          if (!data) {
+            this.errorMessage = 'No article content available.';
+          } else {
+            if (data.title) {
+              this.title = data.title;
+            }
+            const article = this.cleanText(data.extract || data.description || '');
+            this.articleText = article || 'No article content available.';
+          }
+        } catch (e) {
+          this.errorMessage = 'Failed to load article.';
+        } finally {
+          this.isLoading = false;
+        }
+      },
+      fail: () => {
+        this.isLoading = false;
+        this.errorMessage = 'Network error. Check WiFi.';
+      }
+    });
+  },
+
+  goBack() {
+    if (vibrator.vibrate) {
+      try {
+        vibrator.vibrate({ mode: 'short' });
+      } catch (e) {}
+    }
+    router.back();
+  }
+};
+</script>
+
+<style>
+.page {
+  position: relative;
+  width: 480px;
+  height: 480px;
+  background-color: #000000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 35px;
+  box-sizing: border-box;
+}
+
+.back-btn {
+  position: absolute;
+  top: 40px;
+  left: 35px;
+  width: 50px;
+  height: 50px;
+}
+
+.header-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.current-time {
+  color: #888888;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.app-title {
+  color: #FFFFFF;
+  font-size: 26px;
+  font-weight: bold;
+}
+
+.title-card {
+  width: 430px;
+  background-color: #0A0A0A;
+  border: 1px solid #222222;
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+.title-text {
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: bold;
+  lines: 2;
+  text-overflow: ellipsis;
+}
+
+.loading-container,
+.error-container {
+  width: 100%;
+  height: 280px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.loading-text {
+  color: #007AFF;
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.error-text {
+  color: #FF4554;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.retry-button {
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: bold;
+  background-color: #007AFF;
+  padding: 8px 20px;
+  border-radius: 18px;
+  text-align: center;
+}
+
+.article-list {
+  width: 450px;
+  height: 280px;
+  padding: 0 10px;
+}
+
+.article-card {
+  background-color: #0A0A0A;
+  border: 1px solid #222222;
+  border-radius: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.article-content {
+  color: #D9D9D9;
+  font-size: 14px;
+  line-height: 20px;
+}
+</style>

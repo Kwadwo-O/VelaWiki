@@ -167,21 +167,33 @@ export default {
 
   loadSettings() {
     try {
-      const saved = storage.get('velawiki_settings');
-      if (saved) {
-        const settings = JSON.parse(saved);
-        this.keyboardType = settings.keyboardType || 'QWERTY';
-        this.maxResults = settings.maxResults || 10;
-        this.theme = settings.theme || 'dark';
-      }
-
-      if (this.$app && this.$app.$def && this.$app.$def.data && this.$app.$def.data.globalSettings) {
-        this.$app.$def.data.globalSettings.keyboardType = this.keyboardType;
-        this.$app.$def.data.globalSettings.maxResults = this.maxResults;
-        this.$app.$def.data.globalSettings.theme = this.theme;
-      }
+      storage.get({
+        key: 'velawiki_settings',
+        success: (ret) => {
+          const raw = ret && typeof ret === 'object' ? ret.data : ret;
+          if (raw) {
+            const settings = JSON.parse(raw);
+            this.keyboardType = settings.keyboardType || 'QWERTY';
+            this.maxResults = settings.maxResults || 10;
+            this.theme = settings.theme || 'dark';
+          }
+          this.syncGlobalSettings();
+        },
+        fail: () => {
+          this.syncGlobalSettings();
+        }
+      });
     } catch (e) {
       console.log("Error loading settings: " + e);
+      this.syncGlobalSettings();
+    }
+  },
+
+  syncGlobalSettings() {
+    if (this.$app && this.$app.$def && this.$app.$def.data && this.$app.$def.data.globalSettings) {
+      this.$app.$def.data.globalSettings.keyboardType = this.keyboardType;
+      this.$app.$def.data.globalSettings.maxResults = this.maxResults;
+      this.$app.$def.data.globalSettings.theme = this.theme;
     }
   },
 
@@ -214,11 +226,20 @@ export default {
 
   clearCache() {
     try {
-      storage.clear();
-      this.cacheSize = 0;
-      prompt.showToast({
-        message: 'Cache cleared',
-        duration: 1
+      storage.clear({
+        success: () => {
+          this.cacheSize = 0;
+          prompt.showToast({
+            message: 'Cache cleared',
+            duration: 1
+          });
+        },
+        fail: () => {
+          prompt.showToast({
+            message: 'Error clearing cache',
+            duration: 1
+          });
+        }
       });
     } catch (e) {
       console.log("Error clearing cache: " + e);
@@ -230,12 +251,7 @@ export default {
   },
 
   calculateCacheSize() {
-    try {
-      const cached = storage.get('velawiki_cache') || '{}';
-      this.cacheSize = Math.ceil(JSON.stringify(cached).length / 1024);
-    } catch (e) {
-      this.cacheSize = 0;
-    }
+    this.cacheSize = 0;
   },
 
   saveSettings() {
@@ -245,13 +261,14 @@ export default {
         maxResults: this.maxResults,
         theme: this.theme
       };
-      storage.set('velawiki_settings', JSON.stringify(settings));
-      
-      if (this.$app && this.$app.$def && this.$app.$def.data && this.$app.$def.data.globalSettings) {
-        this.$app.$def.data.globalSettings.keyboardType = this.keyboardType;
-        this.$app.$def.data.globalSettings.maxResults = this.maxResults;
-        this.$app.$def.data.globalSettings.theme = this.theme;
-      }
+      storage.set({
+        key: 'velawiki_settings',
+        value: JSON.stringify(settings),
+        fail: (err) => {
+          console.log("Error saving settings: " + JSON.stringify(err));
+        }
+      });
+      this.syncGlobalSettings();
     } catch (e) {
       console.log("Error saving settings: " + e);
     }

@@ -1,5 +1,5 @@
 <template>
-    <div class="splash-container" @click="goToSearch">
+    <div class="splash-container">
       
       <div class="content-wrapper">
         <image 
@@ -11,8 +11,8 @@
       </div>
   
       <div class="info-container">
-        <text class="tooltip-text">Tap anywhere to skip</text>
-        <text class="timer-text">Redirecting in {{countdown}}s</text>
+        <text class="timer-label">Starting in</text>
+        <text class="timer-text">{{countdown}}s</text>
       </div>
   
     </div>
@@ -23,7 +23,7 @@
   
   export default {
     private: {
-      countdown: 5, // Starts a clean 5-second countdown
+      countdown: 2,
       timerId: null
     },
   
@@ -42,8 +42,8 @@
   
     startCountdown() {
       this.clearTimer();
+      this.countdown = 2;
       
-      // Smooth second tracker
       this.timerId = setInterval(() => {
         if (this.countdown > 1) {
           this.countdown--;
@@ -119,15 +119,24 @@
     width: 100%;
   }
   
-  .tooltip-text {
-    color: #007AFF; /* Interactive Accent Color */
+  .timer-label {
+    color: #9AA6C2;
     font-size: 18px;
     font-weight: bold;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
   }
   
   .timer-text {
-    color: #444444; /* Low-priority secondary text */
-    font-size: 16px;
+    color: #FFFFFF;
+    background-color: #007AFF;
+    font-size: 30px;
+    font-weight: bold;
+    line-height: 52px;
+    height: 52px;
+    min-width: 96px;
+    text-align: center;
+    border-radius: 26px;
+    padding-left: 14px;
+    padding-right: 14px;
   }
   </style>

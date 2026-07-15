@@ -1,6 +1,6 @@
 <template>
-  <div class="keyboard-page" show="{{!hide}}">
-    <div class="keyboard-container">
+  <div class="keyboard-page {{screentype === 'rect' ? 'keyboard-page-rect' : 'keyboard-page-round'}}" show="{{!hide}}">
+    <div class="keyboard-container {{screentype === 'rect' ? 'keyboard-container-rect' : 'keyboard-container-round'}}">
       
       <div class="keyboard-row">
         <text 
@@ -188,8 +188,8 @@ export default {
   position: absolute;
   left: 0;
   bottom: 0;
-  width: 480px;
-  height: 240px;
+  width: 100%;
+  overflow: hidden;
 }
 
 /* Base layout settings [cite: 24, 25] */
@@ -197,11 +197,11 @@ export default {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  width: 480px;
-  height: 240px;
-  background-color: #0c0c0c;
-  border-top: 1px solid #1a1a1a;
-  padding: 5px 2px;
+  width: 100%;
+  height: 100%;
+  background-color: #08090b;
+  border-top: 1px solid #1f2228;
+  padding: 5px 4px 7px 4px;
   box-sizing: border-box;
 }
 
@@ -212,74 +212,95 @@ export default {
   justify-content: center;
   align-items: center;
   width: 100%;
-  height: 55px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* Key Styling [cite: 27, 28] */
 .key-item {
   flex: 1;
-  background-color: #222225;
-  color: #ffffff;
-  font-size: 21px;
-  font-weight: bold;
+  background-color: #1f232b;
+  color: #f7f9ff;
+  font-size: 19px;
+  font-weight: 600;
   text-align: center;
-  line-height: 47px;
-  height: 47px;
+  line-height: 42px;
+  height: 42px;
   margin: 0px 2px;
-  border-radius: 6px;
-  border: 1px solid #2a2a2f;
+  border-radius: 8px;
+  border: 1px solid #2e3340;
 }
 
 /* Special button defaults [cite: 29] */
 .key-item-special {
   flex: 1.5;
-  background-color: #161618;
-  color: #cccccc;
-  font-size: 16px;
+  background-color: #141820;
+  color: #d9e0ee;
+  font-size: 15px;
+  font-weight: 600;
 }
 
 /* Blue shift color for inactive, bright highlighted blue for active [cite: 30] */
 .key-item-shift {
-  background-color: #16243a;
-  color: #3897ff;
-  border: 1px solid #1d3c63;
+  background-color: #11263f;
+  color: #67b1ff;
+  border: 1px solid #234d7d;
 }
 .key-item-shift-active {
-  background-color: #007aff;
+  background-color: #0a84ff;
   color: #ffffff;
-  border: 1px solid #3399ff;
+  border: 1px solid #4ea5ff;
 }
 
 /* Warning crimson background for the delete action */
 .key-item-del {
-  background-color: #3d1b1f;
-  color: #ff4554;
-  border: 1px solid #631e26;
+  background-color: #3a1a23;
+  color: #ff6372;
+  border: 1px solid #6e2a36;
 }
 
 /* Highlighted Symbol Pages toggle */
 .key-item-sympage {
-  background-color: #251d3a;
-  color: #b083ff;
-  border: 1px solid #3b2c61;
+  background-color: #221938;
+  color: #c09bff;
+  border: 1px solid #4a3576;
 }
 
 /* Quick Toggle control (?123 / ABC) [cite: 31] */
 .key-item-ctrl {
   flex: 2.5;
-  color: #007aff;
-  font-size: 18px;
+  color: #72b7ff;
+  font-size: 16px;
 }
 
 /* Spacebar [cite: 32] */
 .key-item-space {
   flex: 7.5;
-  background-color: #222225;
-  color: #888888;
-  font-size: 18px;
+  background-color: #1b2028;
+  color: #a7afbf;
+  font-size: 16px;
+  border-color: #2c3340;
 }
 
 .row2-spacer {
-  flex: 0.5;
+  flex: 0.45;
+}
+
+.keyboard-page-rect {
+  height: 236px;
+}
+
+.keyboard-container-rect {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.keyboard-page-round {
+  height: 224px;
+}
+
+.keyboard-container-round {
+  padding-left: 16px;
+  padding-right: 16px;
 }
 </style>
