@@ -14,7 +14,7 @@
 
     <div class="buttons" if="{{hide}}">
       <text 
-        class="submit-btn" 
+        class="submit-btn btn-submit" 
         @click="submitQuery">
         Submit
       </text>
@@ -22,7 +22,7 @@
 
     <div class="buttons-settings" if="{{hide}}">
       <text 
-        class="submit-btn" 
+        class="submit-btn btn-settings" 
         @click="goToSettings">
         Settings
       </text>
@@ -30,7 +30,7 @@
 
     <div class="buttons-saves" if="{{hide}}">
       <text 
-        class="submit-btn secondary-btn" 
+        class="submit-btn btn-saves" 
         @click="goToSaves">
         Saves
       </text>
@@ -130,9 +130,13 @@ export default {
   },
 
   goToSaves() {
-    router.push({
-      uri: 'pages/saves'
-    });
+    prompt.showToast({
+        message: 'Under Maintenance',
+        duration: 1
+      });
+    // router.push({
+    //   uri: 'pages/saves'
+    // });
   },
 
   goBack() {
@@ -225,11 +229,11 @@ export default {
   justify-content: center;
 }
 
+/* Shared Button Properties */
 .submit-btn {
   margin-bottom: 10px;
   width: 320px;
   height: 75px;
-  background-color: #007AFF;
   color: #FFFFFF;
   font-size: 24px;
   font-weight: bold;
@@ -238,7 +242,18 @@ export default {
   border-radius: 37px;
 }
 
-.secondary-btn {
+/* Distinct Dark-Themed Color Styles */
+.btn-submit {
+  background-color: #007AFF;
+}
+
+.btn-settings {
+  background-color: #2C2C2E;
+  border: 1px solid #3A3A3C;
+}
+
+.btn-saves {
   background-color: #15314D;
+  border: 1px solid #1E466B;
 }
 </style>

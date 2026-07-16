@@ -30,6 +30,7 @@
       <div class="section-card">
         <text class="section-title">Search Results</text>
         <div class="setting-row">
+          <text class="chip {{maxResults === 5 ? 'chip-selected' : ''}}" @click="updateMaxResults(5)">5</text>
           <text class="chip {{maxResults === 10 ? 'chip-selected' : ''}}" @click="updateMaxResults(10)">10</text>
           <text class="chip {{maxResults === 20 ? 'chip-selected' : ''}}" @click="updateMaxResults(20)">20</text>
         </div>

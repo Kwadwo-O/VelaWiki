@@ -31,7 +31,9 @@
           </div>
           <div class="result-info">
             <text class="result-title {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">{{(item && item.title) ? item.title : ''}}</text>
-            <text class="result-desc {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">{{(item && item.snippet) ? item.snippet : 'No summary available.'}}</text>
+            <marquee class="result-desc {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}" id="marquee" scrollamount="{{6}}" loop={{-1}}>
+              {{(item && item.snippet) ? item.snippet : 'No summary available.'}}
+            </marquee>
           </div>
         </div>
       </list-item>
@@ -397,7 +399,7 @@ export default {
 }
 
 .result-row {
-  width: 396px;
+  width: 386px;
   height: 76px;
   flex-direction: row;
   align-items: center;

@@ -11,6 +11,19 @@
       <text class="nav-btn reload-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="saveArticle">Save</text>
     </div>
 
+    <div class="pager-buttons" if="{{!isLoading && errorMessage === '' && totalPages > 1}}">
+      <text 
+        class="nav-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}} {{currentPageIndex === 0 ? 'disabled-btn' : ''}}" 
+        @click="prevPage">
+        Previous
+      </text>
+      <text 
+        class="nav-btn reload-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}} {{currentPageIndex >= totalPages - 1 ? 'disabled-btn' : ''}}" 
+        @click="nextPage">
+        Next
+      </text>
+    </div>
+
     <div class="title-card {{themeClass === 'theme-light' ? 'card-light' : 'card-dark'}}">
       <text class="title-text {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">{{title}}</text>
     </div>
@@ -32,11 +45,6 @@
       <text class="article-content article-content-small {{themeClass === 'theme-light' ? 'article-light' : 'article-dark'}}" if="{{textSize === 'small'}}">{{currentPageText}}</text>
       <text class="article-content article-content-medium {{themeClass === 'theme-light' ? 'article-light' : 'article-dark'}}" if="{{textSize === 'medium'}}">{{currentPageText}}</text>
       <text class="article-content article-content-large {{themeClass === 'theme-light' ? 'article-light' : 'article-dark'}}" if="{{textSize === 'large'}}">{{currentPageText}}</text>
-    </div>
-
-    <div class="pager-buttons" if="{{!isLoading && errorMessage === '' && totalPages > 1}}">
-      <text class="pager-btn {{themeClass === 'theme-light' ? 'pager-btn-light' : 'pager-btn-dark'}} {{currentPageIndex === 0 ? 'disabled-btn' : ''}}" @click="prevPage">Previous</text>
-      <text class="pager-btn {{themeClass === 'theme-light' ? 'pager-btn-light' : 'pager-btn-dark'}} {{currentPageIndex >= totalPages - 1 ? 'disabled-btn' : ''}}" @click="nextPage">Next</text>
     </div>
   </div>
 </template>
@@ -73,12 +81,6 @@ export default {
   },
 
   onInit() {
-    console.info('[VelaWiki Article] onInit params:', JSON.stringify({
-      title: this.title || '',
-      key: this.key || '',
-      pageid: this.pageid || 0,
-      query: this.query || ''
-    }));
     this.updateTime();
     this.applyThemeClass();
     this.applyTextSettings();
@@ -107,9 +109,7 @@ export default {
   },
 
   cleanText(raw) {
-    if (!raw) {
-      return '';
-    }
+    if (!raw) return '';
     return raw
       .replace(/<\/?[^>]+(>|$)/g, '')
       .replace(/&quot;/g, '"')
@@ -134,10 +134,6 @@ export default {
     } else {
       this.pageCharLimit = 420;
     }
-    console.info('[VelaWiki Article] Text settings applied:', JSON.stringify({
-      textSize: this.textSize,
-      pageCharLimit: this.pageCharLimit
-    }));
   },
 
   applyThemeClass() {
@@ -173,7 +169,6 @@ export default {
       }
       index = end;
     }
-
     return pages.length > 0 ? pages : ['No content available for this article.'];
   },
 
@@ -224,37 +219,22 @@ export default {
       this.totalPages = 1;
       return;
     }
-
     let safeIndex = index;
-    if (safeIndex < 0) {
-      safeIndex = 0;
-    }
-    if (safeIndex > this.articlePages.length - 1) {
-      safeIndex = this.articlePages.length - 1;
-    }
+    if (safeIndex < 0) safeIndex = 0;
+    if (safeIndex > this.articlePages.length - 1) safeIndex = this.articlePages.length - 1;
 
     this.currentPageIndex = safeIndex;
     this.currentPageText = this.articlePages[safeIndex];
     this.totalPages = this.articlePages.length;
-
-    console.info('[VelaWiki Article] Showing page:', JSON.stringify({
-      page: safeIndex + 1,
-      total: this.totalPages,
-      chars: this.currentPageText.length
-    }));
   },
 
   prevPage() {
-    if (this.currentPageIndex <= 0) {
-      return;
-    }
+    if (this.currentPageIndex <= 0) return;
     this.setPage(this.currentPageIndex - 1);
   },
 
   nextPage() {
-    if (this.currentPageIndex >= this.totalPages - 1) {
-      return;
-    }
+    if (this.currentPageIndex >= this.totalPages - 1) return;
     this.setPage(this.currentPageIndex + 1);
   },
 
@@ -262,7 +242,6 @@ export default {
     const title = (this.title || '').trim();
     const pageKey = (this.key || title).trim();
     if (!pageKey) {
-      console.warn('[VelaWiki Article] Missing page key/title.');
       this.errorMessage = 'Article not found.';
       return;
     }
@@ -277,7 +256,6 @@ export default {
 
     const encodedTitle = encodeURIComponent(pageKey);
     const url = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&exchars=6000&titles=${encodedTitle}&format=json&origin=*`;
-    console.info(`[VelaWiki Article] Request URL: ${url}`);
 
     fetch.fetch({
       url: url,
@@ -287,25 +265,18 @@ export default {
         'Api-User-Agent': 'VelaWiki/1.0 (RedmiWatch5; VelaQuickApp)'
       },
       success: (res) => {
-        console.info('[VelaWiki Article] Fetch success meta:', JSON.stringify({
-          code: res && res.code,
-          hasData: !!(res && res.data),
-          dataType: res && res.data ? typeof res.data : 'undefined'
-        }));
         try {
           const data = (typeof res.data === 'object' && res.data !== null)
             ? res.data
             : JSON.parse(res.data || '{}');
 
           if (data && data.error) {
-            console.error('[VelaWiki Article] API error:', JSON.stringify(data.error));
             this.errorMessage = 'Wikipedia API error.';
             return;
           }
 
           const pages = data && data.query && data.query.pages ? data.query.pages : null;
           const pageIds = pages ? Object.keys(pages) : [];
-          console.info('[VelaWiki Article] Parsed page IDs:', JSON.stringify(pageIds));
           if (!pages || pageIds.length === 0) {
             this.errorMessage = 'No article content available.';
             return;
@@ -315,23 +286,14 @@ export default {
           if (firstPage.title) {
             this.title = firstPage.title;
           }
-
           this.buildPagedArticle(firstPage.extract || '', firstPage.title || this.title);
-
-          console.info('[VelaWiki Article] Final content stats:', JSON.stringify({
-            title: this.title,
-            rawLength: this.fullArticleText.length,
-            pageCount: this.articlePages.length
-          }));
         } catch (e) {
-          console.error('[VelaWiki Article] Parse failed:', e && e.message ? e.message : e);
           this.errorMessage = 'Failed to load article.';
         } finally {
           this.isLoading = false;
         }
       },
       fail: (data, code) => {
-        console.error('[VelaWiki Article] Network failure:', JSON.stringify({ code: code || 0, data: data || null }));
         this.isLoading = false;
         this.errorMessage = `Network error (${code || 'unknown'}).`;
       }
@@ -340,9 +302,7 @@ export default {
 
   goBack() {
     if (vibrator.vibrate) {
-      try {
-        vibrator.vibrate({ mode: 'short' });
-      } catch (e) {}
+      try { vibrator.vibrate({ mode: 'short' }); } catch (e) {}
     }
     router.back();
   },
@@ -417,7 +377,7 @@ export default {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 35px;
+  padding-top: 20px;
 }
 
 .theme-dark {
@@ -434,7 +394,7 @@ export default {
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
 .current-time {
@@ -469,13 +429,14 @@ export default {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 6px;
 }
 
+/* Base button style shared across navigation and pager elements */
 .nav-btn {
   font-size: 20px;
   font-weight: bold;
-  padding: 9px 18px;
+  padding: 8px 18px;
   border-radius: 21px;
   border: 1px solid;
 }
@@ -496,12 +457,27 @@ export default {
   margin-left: 10px;
 }
 
+/* Middle Pager Buttons container */
+.pager-buttons {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.disabled-btn {
+  color: #6D7785 !important;
+  border-color: #2A2A2A !important;
+  background-color: #121212 !important;
+}
+
 .title-card {
   width: 430px;
   border: 1px solid;
   border-radius: 12px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
+  padding: 8px 14px;
+  margin-bottom: 6px;
 }
 
 .card-dark {
@@ -517,14 +493,14 @@ export default {
 .title-text {
   font-size: 22px;
   font-weight: bold;
-  lines: 2;
+  lines: 1;
   text-overflow: ellipsis;
 }
 
 .page-meta {
   width: 430px;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .page-meta-text {
@@ -543,7 +519,7 @@ export default {
 .loading-container,
 .error-container {
   width: 100%;
-  height: 250px;
+  height: 180px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -575,13 +551,14 @@ export default {
   text-align: center;
 }
 
+/* Optimized Height & Safe Bottom Margin to clear bottom round bezel */
 .article-card {
   width: 430px;
-  height: 230px;
+  height: 180px;
   border: 1px solid;
   border-radius: 12px;
   padding: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 24px;
 }
 
 .article-content {
@@ -598,50 +575,19 @@ export default {
 
 .article-content-small {
   font-size: 15px;
-  line-height: 22px;
-  lines: 10;
+  line-height: 21px;
+  lines: 7;
 }
 
 .article-content-medium {
   font-size: 17px;
-  line-height: 24px;
-  lines: 9;
+  line-height: 23px;
+  lines: 6;
 }
 
 .article-content-large {
   font-size: 19px;
-  line-height: 26px;
-  lines: 8;
-}
-
-.pager-buttons {
-  width: 430px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.pager-btn {
-  font-size: 16px;
-  font-weight: bold;
-  border-radius: 18px;
-  padding: 9px 16px;
-}
-
-.pager-btn-dark {
-  color: #CFE4FF;
-  background-color: #142030;
-  border: 1px solid #2B3C50;
-}
-
-.pager-btn-light {
-  color: #0B5FB3;
-  background-color: #E8F2FF;
-  border: 1px solid #B7D7FA;
-}
-
-.disabled-btn {
-  color: #6D7785;
-  border-color: #2A2A2A;
-  background-color: #121212;
+  line-height: 25px;
+  lines: 5;
 }
 </style>
