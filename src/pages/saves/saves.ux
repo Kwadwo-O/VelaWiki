@@ -1,0 +1,239 @@
+<template>
+  <div class="page {{themeClass}}">
+    <div class="header-bar">
+      <text class="current-time {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">{{currentTime}}</text>
+      <text class="app-title {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">Saved Articles</text>
+    </div>
+
+    <div class="nav-buttons">
+      <text class="nav-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="goBack">Back</text>
+      <text class="nav-btn refresh-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="loadSaves">Refresh</text>
+      <text class="nav-btn refresh-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="clearAll">Clear</text>
+    </div>
+
+    <div class="empty-wrap" if="{{!isLoading && savedItems.length === 0}}">
+      <text class="empty-text {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">No saved articles yet.</text>
+    </div>
+
+    <list class="saved-list" if="{{!isLoading && savedItems.length > 0}}">
+      <list-item type="savedItem" class="saved-item {{themeClass === 'theme-light' ? 'card-light' : 'card-dark'}}" for="{{item in savedItems}}" @click="openSaved(item)">
+        <text class="saved-title {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">{{item.title}}</text>
+        <text class="saved-meta {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">{{item.savedLabel}}</text>
+      </list-item>
+    </list>
+  </div>
+</template>
+
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+import prompt from '@system.prompt';
+
+export default {
+  private: {
+    currentTime: '00:00',
+    timerId: null,
+    savedItems: [],
+    isLoading: false,
+    themeClass: 'theme-dark'
+  },
+
+  onInit() {
+    this.updateTime();
+    this.applyThemeClass();
+    this.timerId = setInterval(() => {
+      this.updateTime();
+    }, 1000);
+    this.loadSaves();
+  },
+
+  onShow() {
+    this.applyThemeClass();
+    this.loadSaves();
+  },
+
+  onDestroy() {
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+  },
+
+  updateTime() {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    this.currentTime = `${hours}:${minutes}`;
+  },
+
+  applyThemeClass() {
+    const settings = this.$app && this.$app.$def && this.$app.$def.data
+      ? this.$app.$def.data.globalSettings
+      : null;
+    const theme = settings && settings.theme === 'light' ? 'light' : 'dark';
+    this.themeClass = theme === 'light' ? 'theme-light' : 'theme-dark';
+  },
+
+  loadSaves() {
+    this.isLoading = true;
+    storage.get({
+      key: 'velawiki_saved_articles',
+      success: (ret) => {
+        try {
+          const raw = ret && typeof ret === 'object' ? ret.data : ret;
+          const items = raw ? JSON.parse(raw) : [];
+          this.savedItems = items.map((item) => ({
+            id: item.id,
+            title: item.title || 'Untitled',
+            key: item.key || item.title || '',
+            savedLabel: this.formatSavedAt(item.savedAt)
+          }));
+        } catch (e) {
+          this.savedItems = [];
+        } finally {
+          this.isLoading = false;
+        }
+      },
+      fail: () => {
+        this.savedItems = [];
+        this.isLoading = false;
+      }
+    });
+  },
+
+  formatSavedAt(value) {
+    if (!value) {
+      return 'Saved';
+    }
+    const date = new Date(value);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${month}/${day} ${hour}:${minute}`;
+  },
+
+  openSaved(item) {
+    if (!item) {
+      return;
+    }
+    router.push({
+      uri: 'pages/article',
+      params: {
+        title: item.title,
+        key: item.key,
+        saveId: item.id
+      }
+    });
+  },
+
+  clearAll() {
+    storage.delete({
+      key: 'velawiki_saved_articles',
+      success: () => {
+        this.savedItems = [];
+        prompt.showToast({ message: 'Saved articles cleared', duration: 0.8 });
+      },
+      fail: () => {
+        prompt.showToast({ message: 'No saved articles', duration: 0.8 });
+      }
+    });
+  },
+
+  goBack() {
+    router.back();
+  }
+};
+</script>
+
+<style>
+.page {
+  position: relative;
+  width: 480px;
+  height: 480px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 35px;
+}
+
+.theme-dark { background-color: #000000; }
+.theme-light { background-color: #F4F7FB; }
+
+.header-bar {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.current-time { font-size: 20px; font-weight: bold; margin-bottom: 2px; }
+.app-title { font-size: 24px; font-weight: bold; }
+.muted-dark { color: #888888; }
+.muted-light { color: #5A6270; }
+.text-dark-theme { color: #FFFFFF; }
+.text-light-theme { color: #1D2733; }
+
+.nav-buttons {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.nav-btn {
+  font-size: 16px;
+  font-weight: bold;
+  padding: 8px 14px;
+  border-radius: 18px;
+  border: 1px solid;
+}
+
+.refresh-btn { margin-left: 8px; }
+.nav-btn-dark { color: #3EA6FF; background-color: #142231; border-color: #2D4660; }
+.nav-btn-light { color: #0B5FB3; background-color: #E5F1FF; border-color: #B7D7FA; }
+
+.saved-list {
+  width: 450px;
+  height: 320px;
+  padding: 0 10px;
+}
+
+.saved-item {
+  width: 430px;
+  border-radius: 12px;
+  border: 1px solid;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.card-dark { background-color: #0A0A0A; border-color: #232323; }
+.card-light { background-color: #FFFFFF; border-color: #DBE3EE; }
+
+.saved-title {
+  font-size: 16px;
+  font-weight: bold;
+  lines: 1;
+  text-overflow: ellipsis;
+}
+
+.saved-meta {
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.empty-wrap {
+  width: 450px;
+  height: 300px;
+  justify-content: center;
+  align-items: center;
+}
+
+.empty-text {
+  font-size: 16px;
+  font-weight: bold;
+}
+</style>

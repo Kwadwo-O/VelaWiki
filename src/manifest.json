@@ -30,17 +30,10 @@
 ],
 	"config": {
 	  "logLevel": "log",
-	  "designWidth": "device-width",
-	  "network": {
-	    "domain": [
-	      "*.wikipedia.org",
-	      "en.wikipedia.org",
-	      "wikipedia.org"
-	    ]
-	  }
+	  "designWidth": "device-width"
 	},
 	"router": {
-	  "entry": "pages/splash",
+	  "entry": "pages/search",
 	  "pages": {
 	"pages/search": {
 		"component": "search"
@@ -56,6 +49,9 @@
 	},
 	"pages/article": {
 		"component": "article"
+	},
+	"pages/saves": {
+		"component": "saves"
 	}
 }
 	}

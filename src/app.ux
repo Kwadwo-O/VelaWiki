@@ -1,15 +1,35 @@
 <script>
+import storage from '@system.storage';
+
 export default {
   // Global data storage accessible by all pages
   data: {
     globalSettings: {
-      keyboardType: "QWERTY",
       maxResults: 10,
-      theme: "dark"
+      theme: "dark",
+      textSize: "medium"
     }
   },
   onCreate() {
     console.log("Global application state initialized.");
+    storage.get({
+      key: 'velawiki_settings',
+      success: (ret) => {
+        try {
+          const raw = ret && typeof ret === 'object' ? ret.data : ret;
+          if (!raw) {
+            return;
+          }
+          const settings = JSON.parse(raw);
+          this.globalSettings.maxResults = settings.maxResults || 10;
+          this.globalSettings.theme = settings.theme === 'light' ? 'light' : 'dark';
+          this.globalSettings.textSize = settings.textSize || 'medium';
+        } catch (e) {
+          console.log('Failed to load saved global settings: ' + e);
+        }
+      },
+      fail: () => {}
+    });
   }
 };
 </script>

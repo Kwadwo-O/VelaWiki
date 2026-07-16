@@ -2,15 +2,6 @@
 
 <template>
   <div class="page">
-    <image 
-      src="../../common/left.png" 
-      class="back-btn" 
-      @click="goBack" />
-
-    <image 
-      src="../../common/more.png" 
-      class="settings-btn" 
-      @click="goToSettings" />
 
     <div class="header-bar">
       <text class="current-time">{{currentTime}}</text>
@@ -26,6 +17,22 @@
         class="submit-btn" 
         @click="submitQuery">
         Submit
+      </text>
+    </div>
+
+    <div class="buttons-settings" if="{{hide}}">
+      <text 
+        class="submit-btn" 
+        @click="goToSettings">
+        Settings
+      </text>
+    </div>
+
+    <div class="buttons-saves" if="{{hide}}">
+      <text 
+        class="submit-btn secondary-btn" 
+        @click="goToSaves">
+        Saves
       </text>
     </div>
 
@@ -122,6 +129,12 @@ export default {
     });
   },
 
+  goToSaves() {
+    router.push({
+      uri: 'pages/saves'
+    });
+  },
+
   goBack() {
     console.log("Going back...");
     this.$app.exit()
@@ -205,7 +218,15 @@ export default {
   box-sizing: border-box;
 }
 
+.buttons-settings,
+.buttons-saves {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+}
+
 .submit-btn {
+  margin-bottom: 10px;
   width: 320px;
   height: 75px;
   background-color: #007AFF;
@@ -215,5 +236,9 @@ export default {
   text-align: center;
   line-height: 75px;
   border-radius: 37px;
+}
+
+.secondary-btn {
+  background-color: #15314D;
 }
 </style>

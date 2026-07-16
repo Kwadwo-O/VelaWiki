@@ -1,16 +1,17 @@
 <template>
-  <div class="page">
+  <div class="page {{themeClass}}">
     <div class="header-bar">
-      <text class="current-time">{{currentTime}}</text>
-      <text class="app-title">Search Results</text>
+      <text class="current-time {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">{{currentTime}}</text>
+      <text class="app-title {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">Search Results</text>
     </div>
 
     <div class="nav-buttons">
-      <text class="nav-btn" @click="goBack">← Back</text>
+      <text class="nav-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="goBack">← Back</text>
+      <text class="nav-btn refresh-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="fetchResults">↻ Refresh</text>
     </div>
 
     <div class="query-display">
-      <text class="query-text">Query: {{query}}</text>
+      <text class="query-text {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">Query: {{query}}</text>
     </div>
 
     <div class="loading-container" if="{{isLoading}}">
@@ -22,16 +23,16 @@
       <text class="retry-button" @click="fetchResults">Retry</text>
     </div>
 
-    <list class="results-list" if="{{!isLoading && errorMessage === ''}}">
-      <list-item
-        type="result-item"
-        class="result-item"
-        for="{{item in results}}"
-        @click="openArticle(item)">
-        <text class="result-number">{{$idx + 1}}.</text>
-        <div class="result-info">
-          <text class="result-title">{{item.title}}</text>
-          <text class="result-desc">{{item.snippet}}</text>
+    <list class="results-list" if="{{!isLoading && errorMessage === '' && results && results.length > 0}}">
+      <list-item type="resultItem" class="result-item {{themeClass === 'theme-light' ? 'card-light' : 'card-dark'}}" for="{{item in results}}" @click="openArticle(item)">
+        <div class="result-row">
+          <div class="result-image-placeholder {{themeClass === 'theme-light' ? 'placeholder-light' : 'placeholder-dark'}}">
+            <text class="placeholder-char">{{(item && item.title) ? item.title.charAt(0).toUpperCase() : 'W'}}</text>
+          </div>
+          <div class="result-info">
+            <text class="result-title {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">{{(item && item.title) ? item.title : ''}}</text>
+            <text class="result-desc {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">{{(item && item.snippet) ? item.snippet : 'No summary available.'}}</text>
+          </div>
         </div>
       </list-item>
     </list>
@@ -52,12 +53,14 @@ export default {
     results: [],
     isLoading: false,
     errorMessage: '',
+    themeClass: 'theme-dark',
     currentTime: '00:00',
     timerId: null
   },
 
   onInit() {
     this.updateTime();
+    this.applyThemeClass();
     this.timerId = setInterval(() => {
       this.updateTime();
     }, 1000);
@@ -66,9 +69,7 @@ export default {
   },
 
   onDestroy() {
-    if (this.timerId) {
-      clearInterval(this.timerId);
-    }
+    this.clearAllTimers();
   },
 
   updateTime() {
@@ -83,6 +84,14 @@ export default {
       ? this.$app.$def.data.globalSettings
       : null;
     return settings && settings.maxResults ? settings.maxResults : 10;
+  },
+
+  applyThemeClass() {
+    const settings = this.$app && this.$app.$def && this.$app.$def.data
+      ? this.$app.$def.data.globalSettings
+      : null;
+    const theme = settings && settings.theme === 'light' ? 'light' : 'dark';
+    this.themeClass = theme === 'light' ? 'theme-light' : 'theme-dark';
   },
 
   cleanSnippet(raw) {
@@ -103,52 +112,80 @@ export default {
   fetchResults() {
     const q = (this.query || '').trim();
     if (!q) {
+      this.errorMessage = 'Enter a search term first.';
       return;
     }
 
     const maxResults = this.getMaxResults();
     this.isLoading = true;
     this.errorMessage = '';
+    this.results = [];
 
     const encodedQuery = encodeURIComponent(q);
-    const url =
-      `https://en.wikipedia.org/api/rest_v1/search/title?q=${encodedQuery}` +
-      `&limit=${maxResults}`;
+    const url = `https://en.wikipedia.org/w/rest.php/v1/search/title?q=${encodedQuery}&limit=${maxResults}`;
+
+    console.info(`[VelaWiki Search] Requesting URL: ${url}`);
 
     fetch.fetch({
       url: url,
       method: 'GET',
+      header: {
+        'User-Agent': 'VelaWiki/1.0 (RedmiWatch5; VelaQuickApp)',
+        'Api-User-Agent': 'VelaWiki/1.0 (RedmiWatch5; VelaQuickApp)'
+      },
       success: (res) => {
         try {
-          const data = JSON.parse(res.data);
-          const searchList = data && data.pages ? data.pages : [];
-          if (!searchList.length) {
+          const statusCode = res && typeof res.code === 'number' ? res.code : 200;
+          if (statusCode < 200 || statusCode >= 300) {
+            this.results = [];
+            this.errorMessage = `Wikipedia error (${statusCode})`;
+            return;
+          }
+
+          const data = (typeof res.data === 'object' && res.data !== null)
+            ? res.data
+            : JSON.parse(res.data || '{}');
+
+          if (data && data.httpCode) {
+            this.results = [];
+            this.errorMessage = `Wikipedia error (${data.httpCode})`;
+            return;
+          }
+
+          if (data && data.pages && data.pages.length > 0) {
+            const parsedResults = data.pages.map((page, idx) => ({
+              title: page.title || '',
+              pageid: page.id || 0,
+              key: page.key || page.title || '',
+              snippet: this.cleanSnippet(page.description || page.excerpt || ''),
+              index: idx
+            }));
+            this.results = parsedResults;
+            this.errorMessage = '';
+          } else {
             this.results = [];
             this.errorMessage = 'No results found.';
-          } else {
-            const parsed = searchList.map(item => ({
-              title: item.title,
-              pageid: item.id,
-              key: item.key || item.title,
-              snippet: this.cleanSnippet(item.description || item.excerpt || '')
-            }));
-            this.results = parsed;
-            this.errorMessage = '';
           }
         } catch (e) {
-          this.errorMessage = 'Failed to read search results.';
+          this.results = [];
+          this.errorMessage = 'Failed to parse results.';
         } finally {
           this.isLoading = false;
         }
       },
-      fail: () => {
+      fail: (data, code) => {
         this.isLoading = false;
-        this.errorMessage = 'Network error. Check WiFi.';
+        this.results = [];
+        this.errorMessage = `Network failed (${code || 'unknown'}).`;
       }
     });
   },
 
   openArticle(item) {
+    if (!item) {
+      console.warn("[VelaWiki Search] Attempted to open a null or undefined article item.");
+      return;
+    }
     this.vibrate();
     router.push({
       uri: 'pages/article',
@@ -166,44 +203,76 @@ export default {
     router.back();
   },
 
+  clearAllTimers() {
+    if (this.timerId) {
+      clearInterval(this.timerId);
+      this.timerId = null;
+    }
+  },
+
   vibrate() {
     if (vibrator.vibrate) {
       try {
         vibrator.vibrate({ mode: 'short' });
-      } catch (e) {}
+      } catch (e) {
+        console.error("[VelaWiki Search] Haptic engine feedback failed:", e);
+      }
     }
   }
 };
 </script>
 
 <style>
+/* Safe Styles: No box-sizing or rendering-engine breaking CSS included */
+
 .page {
   position: relative;
   width: 480px;
   height: 480px;
-  background-color: #000000;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   padding-top: 35px;
-  box-sizing: border-box;
+}
+
+.theme-dark {
+  background-color: #000000;
+}
+
+.theme-light {
+  background-color: #F4F7FB;
 }
 
 .nav-buttons {
   width: 100%;
   display: flex;
   justify-content: center;
+  align-items: center;
   margin-bottom: 15px;
 }
 
 .nav-btn {
-  color: #007AFF;
   font-size: 18px;
   font-weight: bold;
-  background-color: #1A1A1A;
   padding: 8px 16px;
   border-radius: 20px;
-  border: 1px solid #333333;
+  border: 1px solid;
+}
+
+.nav-btn-dark {
+  color: #007AFF;
+  background-color: #1A1A1A;
+  border-color: #333333;
+}
+
+.nav-btn-light {
+  color: #0B5FB3;
+  background-color: #E5F1FF;
+  border-color: #B7D7FA;
+}
+
+.refresh-btn {
+  margin-left: 10px;
 }
 
 .header-bar {
@@ -216,16 +285,30 @@ export default {
 }
 
 .current-time {
-  color: #888888;
   font-size: 20px;
   font-weight: bold;
   margin-bottom: 2px;
 }
 
+.muted-dark {
+  color: #888888;
+}
+
+.muted-light {
+  color: #5A6270;
+}
+
 .app-title {
-  color: #FFFFFF;
   font-size: 24px;
   font-weight: bold;
+}
+
+.text-dark-theme {
+  color: #FFFFFF;
+}
+
+.text-light-theme {
+  color: #1D2733;
 }
 
 .query-display {
@@ -235,14 +318,13 @@ export default {
 }
 
 .query-text {
-  color: #AAAAAA;
   font-size: 14px;
   font-weight: bold;
 }
 
 .loading-container {
   width: 100%;
-  height: 300px;
+  height: 290px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -256,19 +338,18 @@ export default {
 }
 
 .error-container {
-  width: 100%;
-  height: 300px;
+  width: 420px;
+  height: 290px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 30px;
-  box-sizing: border-box;
+  padding: 30px 0;
 }
 
 .error-text {
   color: #FF4554;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: bold;
   text-align: center;
   margin-bottom: 20px;
@@ -284,38 +365,77 @@ export default {
   text-align: center;
 }
 
+/* Scrollable Container (Fixed Height instead of max-height) */
 .results-list {
   width: 450px;
-  max-height: 300px;
+  height: 290px; 
   padding: 0 15px;
+  flex-direction: column;
+  align-items: center;
 }
 
+/* Explicit width elements work natively in Xiaomi's Flex system */
 .result-item {
-  flex-direction: row;
-  align-items: flex-start;
+  width: 420px;
+  height: 92px;
+  justify-content: center;
+  align-items: center;
   margin-bottom: 12px;
-  padding: 12px;
-  background-color: #0A0A0A;
-  border-radius: 12px;
-  border: 1px solid #222222;
+  padding: 0 12px;
+  border-radius: 16px;
+  border: 1px solid;
 }
 
-.result-number {
+.card-dark {
+  background-color: #0A0A0A;
+  border-color: #222222;
+}
+
+.card-light {
+  background-color: #FFFFFF;
+  border-color: #DBE3EE;
+}
+
+.result-row {
+  width: 396px;
+  height: 76px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.result-image-placeholder {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  border: 1px solid;
+  margin-right: 12px;
+  justify-content: center;
+  align-items: center;
+}
+
+.placeholder-dark {
+  background-color: #1A1A1A;
+  border-color: #333333;
+}
+
+.placeholder-light {
+  background-color: #EEF5FF;
+  border-color: #C9DCF3;
+}
+
+.placeholder-char {
   color: #007AFF;
-  font-size: 14px;
+  font-size: 24px;
   font-weight: bold;
-  margin-right: 8px;
-  width: 20px;
 }
 
 .result-info {
   flex-direction: column;
-  width: 380px;
+  width: 324px;
 }
 
 .result-title {
-  color: #FFFFFF;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: bold;
   margin-bottom: 4px;
   lines: 1;
@@ -323,9 +443,10 @@ export default {
 }
 
 .result-desc {
-  color: #888888;
   font-size: 13px;
   lines: 2;
   text-overflow: ellipsis;
+  line-height: 18px;
 }
+
 </style>

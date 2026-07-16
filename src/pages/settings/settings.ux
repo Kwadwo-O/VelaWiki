@@ -1,129 +1,56 @@
 <template>
   <div class="page">
-    <!-- Back Button -->
-    <image 
-      src="../../common/left.png" 
-      class="back-btn" 
-      @click="goBack" />
-
     <div class="header-bar">
       <text class="current-time">{{currentTime}}</text>
       <text class="app-title">Settings</text>
     </div>
 
-    <!-- Settings Menu -->
-    <list class="settings-list">
-      
-      <!-- Keyboard Layout Section -->
-      <list-item type="normal" class="section-header">
-        <text class="section-title">Input Method</text>
-      </list-item>
+    <div class="nav-buttons">
+      <text class="nav-btn" @click="goBack">Back</text>
+    </div>
 
-      <list-item type="normal"
-        class="setting-item {{keyboardType === 'QWERTY' ? 'selected-item' : ''}}"
-        @click="updateKeyboard('QWERTY')">
-        <div class="item-content">
-          <text class="item-label">QWERTY Keyboard</text>
-          <text class="item-desc">Full layout (recommended)</text>
+    <div class="settings-container">
+      <div class="section-card">
+        <text class="section-title">Theme</text>
+        <div class="setting-row">
+          <text class="chip {{theme === 'dark' ? 'chip-selected' : ''}}" @click="updateTheme('dark')">Dark</text>
+          <text class="chip {{theme === 'light' ? 'chip-selected' : ''}}" @click="updateTheme('light')">Light</text>
         </div>
-        <text class="check-mark" if="{{keyboardType === 'QWERTY'}}">✓</text>
-      </list-item>
+      </div>
 
-      <list-item type="normal"
-        class="setting-item {{keyboardType === 'T9' ? 'selected-item' : ''}}"
-        @click="updateKeyboard('T9')">
-        <div class="item-content">
-          <text class="item-label">T9 Grid</text>
-          <text class="item-desc">Compact layout</text>
+      <div class="section-card">
+        <text class="section-title">Text Size</text>
+        <div class="setting-row">
+          <text class="chip {{textSize === 'small' ? 'chip-selected' : ''}}" @click="updateTextSize('small')">Small</text>
+          <text class="chip {{textSize === 'medium' ? 'chip-selected' : ''}}" @click="updateTextSize('medium')">Medium</text>
+          <text class="chip {{textSize === 'large' ? 'chip-selected' : ''}}" @click="updateTextSize('large')">Large</text>
         </div>
-        <text class="check-mark" if="{{keyboardType === 'T9'}}">✓</text>
-      </list-item>
+      </div>
 
-      <!-- Search Settings Section -->
-      <list-item type="normal" class="section-header">
-        <text class="section-title">Search Options</text>
-      </list-item>
-
-      <list-item type="normal"
-        class="setting-item {{maxResults === 10 ? 'selected-item' : ''}}"
-        @click="updateMaxResults(10)">
-        <div class="item-content">
-          <text class="item-label">Results per Search: 10</text>
-          <text class="item-desc">Standard (faster)</text>
+      <div class="section-card">
+        <text class="section-title">Search Results</text>
+        <div class="setting-row">
+          <text class="chip {{maxResults === 10 ? 'chip-selected' : ''}}" @click="updateMaxResults(10)">10</text>
+          <text class="chip {{maxResults === 20 ? 'chip-selected' : ''}}" @click="updateMaxResults(20)">20</text>
         </div>
-        <text class="check-mark" if="{{maxResults === 10}}">✓</text>
-      </list-item>
+      </div>
 
-      <list-item type="normal"
-        class="setting-item {{maxResults === 20 ? 'selected-item' : ''}}"
-        @click="updateMaxResults(20)">
-        <div class="item-content">
-          <text class="item-label">Results per Search: 20</text>
-          <text class="item-desc">More options</text>
+      <div class="section-card">
+        <text class="section-title">Saved Articles</text>
+        <div class="setting-row">
+          <text class="chip action-chip" @click="goToSaves">Open Saves</text>
+          <text class="chip action-chip" @click="clearSaves">Clear Saves</text>
         </div>
-        <text class="check-mark" if="{{maxResults === 20}}">✓</text>
-      </list-item>
+      </div>
 
-      <!-- Theme Section -->
-      <list-item type="normal" class="section-header">
-        <text class="section-title">Display</text>
-      </list-item>
-
-      <list-item type="normal"
-        class="setting-item {{theme === 'dark' ? 'selected-item' : ''}}"
-        @click="updateTheme('dark')">
-        <div class="item-content">
-          <text class="item-label">Dark Theme</text>
-          <text class="item-desc">Eye-friendly</text>
-        </div>
-        <text class="check-mark" if="{{theme === 'dark'}}">✓</text>
-      </list-item>
-
-      <list-item type="normal"
-        class="setting-item {{theme === 'amoled' ? 'selected-item' : ''}}"
-        @click="updateTheme('amoled')">
-        <div class="item-content">
-          <text class="item-label">AMOLED Theme</text>
-          <text class="item-desc">Pure black (battery save)</text>
-        </div>
-        <text class="check-mark" if="{{theme === 'amoled'}}">✓</text>
-      </list-item>
-
-      <!-- Cache Section -->
-      <list-item type="normal" class="section-header">
+      <div class="section-card">
         <text class="section-title">Storage</text>
-      </list-item>
-
-      <list-item type="normal"
-        class="setting-item action-item"
-        @click="clearCache">
-        <div class="item-content">
-          <text class="item-label">Clear Cache</text>
-          <text class="item-desc">Free up {{cacheSize}}KB</text>
+        <div class="setting-row">
+          <text class="chip action-chip" @click="clearCache">Clear Cache</text>
+          <text class="meta-text">{{cacheSize}}KB cache</text>
         </div>
-        <text class="action-arrow">→</text>
-      </list-item>
-
-      <!-- About Section -->
-      <list-item type="normal" class="section-header">
-        <text class="section-title">About</text>
-      </list-item>
-
-      <list-item type="normal" class="setting-item">
-        <div class="item-content">
-          <text class="item-label">VelaWiki</text>
-          <text class="item-desc">v1.0.0</text>
-        </div>
-      </list-item>
-
-      <list-item type="normal" class="setting-item">
-        <div class="item-content">
-          <text class="item-label">Device</text>
-          <text class="item-desc">Redmi Watch 5</text>
-        </div>
-      </list-item>
-
-    </list>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -134,9 +61,9 @@ import prompt from '@system.prompt';
 
 export default {
   private: {
-    keyboardType: 'QWERTY',
     maxResults: 10,
     theme: 'dark',
+    textSize: 'medium',
     cacheSize: 0,
     currentTime: '00:00',
     timerId: null
@@ -147,7 +74,6 @@ export default {
     this.timerId = setInterval(() => {
       this.updateTime();
     }, 1000);
-
     this.loadSettings();
     this.calculateCacheSize();
   },
@@ -155,6 +81,7 @@ export default {
   onDestroy() {
     if (this.timerId) {
       clearInterval(this.timerId);
+      this.timerId = null;
     }
   },
 
@@ -165,117 +92,109 @@ export default {
     this.currentTime = `${hours}:${minutes}`;
   },
 
+  goBack() {
+    router.back();
+  },
+
+  goToSaves() {
+    router.push({
+      uri: 'pages/saves'
+    });
+  },
+
   loadSettings() {
-    try {
-      storage.get({
-        key: 'velawiki_settings',
-        success: (ret) => {
+    storage.get({
+      key: 'velawiki_settings',
+      success: (ret) => {
+        try {
           const raw = ret && typeof ret === 'object' ? ret.data : ret;
           if (raw) {
             const settings = JSON.parse(raw);
-            this.keyboardType = settings.keyboardType || 'QWERTY';
             this.maxResults = settings.maxResults || 10;
-            this.theme = settings.theme || 'dark';
+            this.theme = settings.theme === 'light' ? 'light' : 'dark';
+            this.textSize = settings.textSize || 'medium';
           }
-          this.syncGlobalSettings();
-        },
-        fail: () => {
-          this.syncGlobalSettings();
+        } catch (e) {
+          console.log('Failed to parse settings: ' + e);
         }
-      });
-    } catch (e) {
-      console.log("Error loading settings: " + e);
-      this.syncGlobalSettings();
-    }
+        this.syncGlobalSettings();
+      },
+      fail: () => {
+        this.syncGlobalSettings();
+      }
+    });
+  },
+
+  saveSettings() {
+    const payload = JSON.stringify({
+      maxResults: this.maxResults,
+      theme: this.theme,
+      textSize: this.textSize
+    });
+
+    storage.set({
+      key: 'velawiki_settings',
+      value: payload,
+      success: () => {
+        this.syncGlobalSettings();
+        prompt.showToast({ message: 'Saved', duration: 0.8 });
+      },
+      fail: () => {
+        prompt.showToast({ message: 'Save failed', duration: 1 });
+      }
+    });
   },
 
   syncGlobalSettings() {
     if (this.$app && this.$app.$def && this.$app.$def.data && this.$app.$def.data.globalSettings) {
-      this.$app.$def.data.globalSettings.keyboardType = this.keyboardType;
       this.$app.$def.data.globalSettings.maxResults = this.maxResults;
       this.$app.$def.data.globalSettings.theme = this.theme;
+      this.$app.$def.data.globalSettings.textSize = this.textSize;
     }
   },
 
-  updateKeyboard(type) {
-    this.keyboardType = type;
+  updateMaxResults(value) {
+    this.maxResults = value;
     this.saveSettings();
-    prompt.showToast({
-      message: `Keyboard: ${type}`,
-      duration: 0.8
-    });
   },
 
-  updateMaxResults(count) {
-    this.maxResults = count;
+  updateTheme(value) {
+    this.theme = value;
     this.saveSettings();
-    prompt.showToast({
-      message: `Max results: ${count}`,
-      duration: 0.8
-    });
   },
 
-  updateTheme(themeType) {
-    this.theme = themeType;
+  updateTextSize(value) {
+    this.textSize = value;
     this.saveSettings();
-    prompt.showToast({
-      message: `Theme: ${themeType}`,
-      duration: 0.8
-    });
-  },
-
-  clearCache() {
-    try {
-      storage.clear({
-        success: () => {
-          this.cacheSize = 0;
-          prompt.showToast({
-            message: 'Cache cleared',
-            duration: 1
-          });
-        },
-        fail: () => {
-          prompt.showToast({
-            message: 'Error clearing cache',
-            duration: 1
-          });
-        }
-      });
-    } catch (e) {
-      console.log("Error clearing cache: " + e);
-      prompt.showToast({
-        message: 'Error clearing cache',
-        duration: 1
-      });
-    }
   },
 
   calculateCacheSize() {
     this.cacheSize = 0;
   },
 
-  saveSettings() {
-    try {
-      const settings = {
-        keyboardType: this.keyboardType,
-        maxResults: this.maxResults,
-        theme: this.theme
-      };
-      storage.set({
-        key: 'velawiki_settings',
-        value: JSON.stringify(settings),
-        fail: (err) => {
-          console.log("Error saving settings: " + JSON.stringify(err));
-        }
-      });
-      this.syncGlobalSettings();
-    } catch (e) {
-      console.log("Error saving settings: " + e);
-    }
+  clearCache() {
+    storage.delete({
+      key: 'velawiki_cache',
+      success: () => {
+        this.cacheSize = 0;
+        prompt.showToast({ message: 'Cache cleared', duration: 0.8 });
+      },
+      fail: () => {
+        prompt.showToast({ message: 'No cache data', duration: 0.8 });
+      }
+    });
   },
 
-  goBack() {
-    router.back();
+  clearSaves() {
+    storage.delete({
+      key: 'velawiki_saved_articles',
+      success: () => {
+        prompt.showToast({ message: 'Saves cleared', duration: 0.8 });
+      },
+      fail: () => {
+        prompt.showToast({ message: 'No saved articles', duration: 0.8 });
+      }
+    });
   }
 };
 </script>
@@ -290,15 +209,6 @@ export default {
   align-items: center;
   justify-content: flex-start;
   padding-top: 35px;
-  box-sizing: border-box;
-}
-
-.back-btn {
-  position: absolute;
-  top: 40px;
-  left: 35px;
-  width: 50px;
-  height: 50px;
 }
 
 .header-bar {
@@ -307,14 +217,13 @@ export default {
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
 }
 
 .current-time {
-  color: #888888;
-  font-size: 18px;
+  color: #8A8A8A;
+  font-size: 20px;
   font-weight: bold;
-  margin-bottom: 2px;
 }
 
 .app-title {
@@ -323,73 +232,77 @@ export default {
   font-weight: bold;
 }
 
-.settings-list {
-  width: 450px;
-  max-height: 380px;
-  padding: 0 15px;
+.nav-buttons {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 10px;
 }
 
-.section-header {
-  padding: 15px 0 8px 0;
-  background-color: transparent;
-  border: none;
+.nav-btn {
+  color: #3EA6FF;
+  background-color: #142231;
+  border: 1px solid #2D4660;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 8px 18px;
+  border-radius: 20px;
+}
+
+.settings-container {
+  width: 448px;
+  height: 350px;
+  padding: 0 8px;
+  flex-direction: column;
+}
+
+.section-card {
+  width: 432px;
+  background-color: #0D0D0D;
+  border: 1px solid #232323;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  padding: 10px;
 }
 
 .section-title {
-  color: #007AFF;
-  font-size: 14px;
+  color: #4DA3FF;
+  font-size: 13px;
   font-weight: bold;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  margin-bottom: 8px;
 }
 
-.setting-item {
+.setting-row {
+  width: 412px;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  background-color: #0A0A0A;
-  border: 1px solid #222222;
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 10px;
-  height: auto;
 }
 
-.selected-item {
-  background-color: #1A1A2E;
-  border: 1px solid #007AFF;
+.chip {
+  color: #DCEBFF;
+  background-color: #151515;
+  border: 1px solid #2D2D2D;
+  font-size: 14px;
+  font-weight: bold;
+  border-radius: 14px;
+  padding: 8px 12px;
+  margin-right: 8px;
 }
 
-.action-item {
-  cursor: pointer;
-}
-
-.item-content {
-  flex-direction: column;
-  width: 340px;
-}
-
-.item-label {
+.chip-selected {
   color: #FFFFFF;
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 2px;
+  background-color: #0F3257;
+  border-color: #2C6BAA;
 }
 
-.item-desc {
-  color: #888888;
+.action-chip {
+  background-color: #1A2230;
+  border-color: #314359;
+}
+
+.meta-text {
+  color: #8C97A6;
   font-size: 12px;
-}
-
-.check-mark {
-  color: #007AFF;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.action-arrow {
-  color: #007AFF;
-  font-size: 18px;
   font-weight: bold;
 }
 </style>

@@ -1,17 +1,22 @@
 <template>
-  <div class="page">
-    <image
-      src="../../common/left.png"
-      class="back-btn"
-      @click="goBack" />
-
+  <div class="page {{themeClass}}">
     <div class="header-bar">
-      <text class="current-time">{{currentTime}}</text>
-      <text class="app-title">Article</text>
+      <text class="current-time {{themeClass === 'theme-light' ? 'muted-light' : 'muted-dark'}}">{{currentTime}}</text>
+      <text class="app-title {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">Article</text>
     </div>
 
-    <div class="title-card">
-      <text class="title-text">{{title}}</text>
+    <div class="nav-buttons">
+      <text class="nav-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="goBack">Back</text>
+      <text class="nav-btn reload-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="fetchArticle">Reload</text>
+      <text class="nav-btn reload-btn {{themeClass === 'theme-light' ? 'nav-btn-light' : 'nav-btn-dark'}}" @click="saveArticle">Save</text>
+    </div>
+
+    <div class="title-card {{themeClass === 'theme-light' ? 'card-light' : 'card-dark'}}">
+      <text class="title-text {{themeClass === 'theme-light' ? 'text-light-theme' : 'text-dark-theme'}}">{{title}}</text>
+    </div>
+
+    <div class="page-meta" if="{{!isLoading && errorMessage === ''}}">
+      <text class="page-meta-text {{themeClass === 'theme-light' ? 'meta-light' : 'meta-dark'}}">Page {{currentPageIndex + 1}} / {{totalPages}}</text>
     </div>
 
     <div class="loading-container" if="{{isLoading}}">
@@ -23,11 +28,16 @@
       <text class="retry-button" @click="fetchArticle">Retry</text>
     </div>
 
-    <list class="article-list" if="{{!isLoading && errorMessage === ''}}">
-      <list-item type="article-card" class="article-card">
-        <text class="article-content">{{articleText}}</text>
-      </list-item>
-    </list>
+    <div class="article-card {{themeClass === 'theme-light' ? 'card-light' : 'card-dark'}}" if="{{!isLoading && errorMessage === ''}}">
+      <text class="article-content article-content-small {{themeClass === 'theme-light' ? 'article-light' : 'article-dark'}}" if="{{textSize === 'small'}}">{{currentPageText}}</text>
+      <text class="article-content article-content-medium {{themeClass === 'theme-light' ? 'article-light' : 'article-dark'}}" if="{{textSize === 'medium'}}">{{currentPageText}}</text>
+      <text class="article-content article-content-large {{themeClass === 'theme-light' ? 'article-light' : 'article-dark'}}" if="{{textSize === 'large'}}">{{currentPageText}}</text>
+    </div>
+
+    <div class="pager-buttons" if="{{!isLoading && errorMessage === '' && totalPages > 1}}">
+      <text class="pager-btn {{themeClass === 'theme-light' ? 'pager-btn-light' : 'pager-btn-dark'}} {{currentPageIndex === 0 ? 'disabled-btn' : ''}}" @click="prevPage">Previous</text>
+      <text class="pager-btn {{themeClass === 'theme-light' ? 'pager-btn-light' : 'pager-btn-dark'}} {{currentPageIndex >= totalPages - 1 ? 'disabled-btn' : ''}}" @click="nextPage">Next</text>
+    </div>
   </div>
 </template>
 
@@ -35,34 +45,57 @@
 import fetch from '@system.fetch';
 import router from '@system.router';
 import vibrator from '@system.vibrator';
+import storage from '@system.storage';
+import prompt from '@system.prompt';
 
 export default {
   protected: {
     title: '',
     pageid: 0,
     key: '',
-    query: ''
+    query: '',
+    saveId: ''
   },
 
   private: {
     isLoading: false,
     errorMessage: '',
-    articleText: '',
+    articlePages: [],
+    fullArticleText: '',
+    currentPageText: '',
+    currentPageIndex: 0,
+    totalPages: 1,
+    pageCharLimit: 420,
+    textSize: 'medium',
+    themeClass: 'theme-dark',
     currentTime: '00:00',
     timerId: null
   },
 
   onInit() {
+    console.info('[VelaWiki Article] onInit params:', JSON.stringify({
+      title: this.title || '',
+      key: this.key || '',
+      pageid: this.pageid || 0,
+      query: this.query || ''
+    }));
     this.updateTime();
+    this.applyThemeClass();
+    this.applyTextSettings();
     this.timerId = setInterval(() => {
       this.updateTime();
     }, 1000);
-    this.fetchArticle();
+    if (this.saveId) {
+      this.loadSavedArticle(this.saveId);
+    } else {
+      this.fetchArticle();
+    }
   },
 
   onDestroy() {
     if (this.timerId) {
       clearInterval(this.timerId);
+      this.timerId = null;
     }
   },
 
@@ -75,7 +108,7 @@ export default {
 
   cleanText(raw) {
     if (!raw) {
-      return 'No content available for this article.';
+      return '';
     }
     return raw
       .replace(/<\/?[^>]+(>|$)/g, '')
@@ -88,43 +121,219 @@ export default {
       .trim();
   },
 
-  fetchArticle() {
-    const title = (this.title || '').trim();
-    const pageKey = (this.key || title).trim();
-    if (!pageKey) {
-      this.errorMessage = 'Article not found.';
-      return;
+  applyTextSettings() {
+    const settings = this.$app && this.$app.$def && this.$app.$def.data
+      ? this.$app.$def.data.globalSettings
+      : null;
+    const chosen = settings && settings.textSize ? settings.textSize : 'medium';
+    this.textSize = chosen;
+    if (chosen === 'small') {
+      this.pageCharLimit = 540;
+    } else if (chosen === 'large') {
+      this.pageCharLimit = 320;
+    } else {
+      this.pageCharLimit = 420;
+    }
+    console.info('[VelaWiki Article] Text settings applied:', JSON.stringify({
+      textSize: this.textSize,
+      pageCharLimit: this.pageCharLimit
+    }));
+  },
+
+  applyThemeClass() {
+    const settings = this.$app && this.$app.$def && this.$app.$def.data
+      ? this.$app.$def.data.globalSettings
+      : null;
+    const theme = settings && settings.theme === 'light' ? 'light' : 'dark';
+    this.themeClass = theme === 'light' ? 'theme-light' : 'theme-dark';
+  },
+
+  splitIntoPages(text) {
+    const pages = [];
+    const content = (text || '').trim();
+    if (!content) {
+      return ['No content available for this article.'];
     }
 
+    let index = 0;
+    while (index < content.length) {
+      let end = index + this.pageCharLimit;
+      if (end >= content.length) {
+        end = content.length;
+      } else {
+        const chunk = content.slice(index, end);
+        const lastSpace = chunk.lastIndexOf(' ');
+        if (lastSpace > 280) {
+          end = index + lastSpace;
+        }
+      }
+      const part = content.slice(index, end).trim();
+      if (part) {
+        pages.push(part);
+      }
+      index = end;
+    }
+
+    return pages.length > 0 ? pages : ['No content available for this article.'];
+  },
+
+  buildPagedArticle(text, fallbackTitle) {
+    const cleaned = this.cleanText(text || '');
+    this.fullArticleText = cleaned;
+    this.articlePages = this.splitIntoPages(cleaned);
+    this.setPage(0);
+    if (!this.title) {
+      this.title = fallbackTitle || 'Article';
+    }
+  },
+
+  loadSavedArticle(id) {
     this.isLoading = true;
     this.errorMessage = '';
-
-    const url = `https://en.wikipedia.org/api/rest_v1/page/${encodeURIComponent(pageKey)}/summary`;
-
-    fetch.fetch({
-      url: url,
-      method: 'GET',
-      success: (res) => {
+    storage.get({
+      key: 'velawiki_saved_articles',
+      success: (ret) => {
         try {
-          const data = JSON.parse(res.data);
-          if (!data) {
-            this.errorMessage = 'No article content available.';
-          } else {
-            if (data.title) {
-              this.title = data.title;
-            }
-            const article = this.cleanText(data.extract || data.description || '');
-            this.articleText = article || 'No article content available.';
+          const raw = ret && typeof ret === 'object' ? ret.data : ret;
+          const items = raw ? JSON.parse(raw) : [];
+          const saved = items.find((item) => item && item.id === id);
+          if (!saved) {
+            this.errorMessage = 'Saved article not found.';
+            return;
           }
+          this.title = saved.title || this.title;
+          this.key = saved.key || this.key || this.title;
+          this.buildPagedArticle(saved.content || '', this.title);
         } catch (e) {
-          this.errorMessage = 'Failed to load article.';
+          this.errorMessage = 'Failed to load saved article.';
         } finally {
           this.isLoading = false;
         }
       },
       fail: () => {
         this.isLoading = false;
-        this.errorMessage = 'Network error. Check WiFi.';
+        this.errorMessage = 'No saved articles available.';
+      }
+    });
+  },
+
+  setPage(index) {
+    if (!this.articlePages || this.articlePages.length === 0) {
+      this.currentPageIndex = 0;
+      this.currentPageText = 'No content available for this article.';
+      this.totalPages = 1;
+      return;
+    }
+
+    let safeIndex = index;
+    if (safeIndex < 0) {
+      safeIndex = 0;
+    }
+    if (safeIndex > this.articlePages.length - 1) {
+      safeIndex = this.articlePages.length - 1;
+    }
+
+    this.currentPageIndex = safeIndex;
+    this.currentPageText = this.articlePages[safeIndex];
+    this.totalPages = this.articlePages.length;
+
+    console.info('[VelaWiki Article] Showing page:', JSON.stringify({
+      page: safeIndex + 1,
+      total: this.totalPages,
+      chars: this.currentPageText.length
+    }));
+  },
+
+  prevPage() {
+    if (this.currentPageIndex <= 0) {
+      return;
+    }
+    this.setPage(this.currentPageIndex - 1);
+  },
+
+  nextPage() {
+    if (this.currentPageIndex >= this.totalPages - 1) {
+      return;
+    }
+    this.setPage(this.currentPageIndex + 1);
+  },
+
+  fetchArticle() {
+    const title = (this.title || '').trim();
+    const pageKey = (this.key || title).trim();
+    if (!pageKey) {
+      console.warn('[VelaWiki Article] Missing page key/title.');
+      this.errorMessage = 'Article not found.';
+      return;
+    }
+
+    this.isLoading = true;
+    this.errorMessage = '';
+    this.articlePages = [];
+    this.fullArticleText = '';
+    this.currentPageText = '';
+    this.currentPageIndex = 0;
+    this.totalPages = 1;
+
+    const encodedTitle = encodeURIComponent(pageKey);
+    const url = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&exchars=6000&titles=${encodedTitle}&format=json&origin=*`;
+    console.info(`[VelaWiki Article] Request URL: ${url}`);
+
+    fetch.fetch({
+      url: url,
+      method: 'GET',
+      header: {
+        'User-Agent': 'VelaWiki/1.0 (RedmiWatch5; VelaQuickApp)',
+        'Api-User-Agent': 'VelaWiki/1.0 (RedmiWatch5; VelaQuickApp)'
+      },
+      success: (res) => {
+        console.info('[VelaWiki Article] Fetch success meta:', JSON.stringify({
+          code: res && res.code,
+          hasData: !!(res && res.data),
+          dataType: res && res.data ? typeof res.data : 'undefined'
+        }));
+        try {
+          const data = (typeof res.data === 'object' && res.data !== null)
+            ? res.data
+            : JSON.parse(res.data || '{}');
+
+          if (data && data.error) {
+            console.error('[VelaWiki Article] API error:', JSON.stringify(data.error));
+            this.errorMessage = 'Wikipedia API error.';
+            return;
+          }
+
+          const pages = data && data.query && data.query.pages ? data.query.pages : null;
+          const pageIds = pages ? Object.keys(pages) : [];
+          console.info('[VelaWiki Article] Parsed page IDs:', JSON.stringify(pageIds));
+          if (!pages || pageIds.length === 0) {
+            this.errorMessage = 'No article content available.';
+            return;
+          }
+
+          const firstPage = pages[pageIds[0]] || {};
+          if (firstPage.title) {
+            this.title = firstPage.title;
+          }
+
+          this.buildPagedArticle(firstPage.extract || '', firstPage.title || this.title);
+
+          console.info('[VelaWiki Article] Final content stats:', JSON.stringify({
+            title: this.title,
+            rawLength: this.fullArticleText.length,
+            pageCount: this.articlePages.length
+          }));
+        } catch (e) {
+          console.error('[VelaWiki Article] Parse failed:', e && e.message ? e.message : e);
+          this.errorMessage = 'Failed to load article.';
+        } finally {
+          this.isLoading = false;
+        }
+      },
+      fail: (data, code) => {
+        console.error('[VelaWiki Article] Network failure:', JSON.stringify({ code: code || 0, data: data || null }));
+        this.isLoading = false;
+        this.errorMessage = `Network error (${code || 'unknown'}).`;
       }
     });
   },
@@ -136,6 +345,66 @@ export default {
       } catch (e) {}
     }
     router.back();
+  },
+
+  saveArticle() {
+    if (!this.fullArticleText) {
+      prompt.showToast({ message: 'No article content yet', duration: 0.8 });
+      return;
+    }
+
+    const articleId = this.key || this.title;
+    storage.get({
+      key: 'velawiki_saved_articles',
+      success: (ret) => {
+        let items = [];
+        try {
+          const raw = ret && typeof ret === 'object' ? ret.data : ret;
+          items = raw ? JSON.parse(raw) : [];
+        } catch (e) {
+          items = [];
+        }
+
+        const updated = items.filter((item) => item && item.id !== articleId);
+        updated.unshift({
+          id: articleId,
+          title: this.title || 'Untitled',
+          key: this.key || this.title,
+          content: this.fullArticleText,
+          savedAt: Date.now()
+        });
+
+        storage.set({
+          key: 'velawiki_saved_articles',
+          value: JSON.stringify(updated),
+          success: () => {
+            prompt.showToast({ message: 'Article saved', duration: 0.8 });
+          },
+          fail: () => {
+            prompt.showToast({ message: 'Save failed', duration: 1 });
+          }
+        });
+      },
+      fail: () => {
+        const first = [{
+          id: articleId,
+          title: this.title || 'Untitled',
+          key: this.key || this.title,
+          content: this.fullArticleText,
+          savedAt: Date.now()
+        }];
+        storage.set({
+          key: 'velawiki_saved_articles',
+          value: JSON.stringify(first),
+          success: () => {
+            prompt.showToast({ message: 'Article saved', duration: 0.8 });
+          },
+          fail: () => {
+            prompt.showToast({ message: 'Save failed', duration: 1 });
+          }
+        });
+      }
+    });
   }
 };
 </script>
@@ -145,20 +414,18 @@ export default {
   position: relative;
   width: 480px;
   height: 480px;
-  background-color: #000000;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
   padding-top: 35px;
-  box-sizing: border-box;
 }
 
-.back-btn {
-  position: absolute;
-  top: 40px;
-  left: 35px;
-  width: 50px;
-  height: 50px;
+.theme-dark {
+  background-color: #000000;
+}
+
+.theme-light {
+  background-color: #F4F7FB;
 }
 
 .header-bar {
@@ -167,55 +434,126 @@ export default {
   justify-content: center;
   align-items: center;
   width: 100%;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .current-time {
-  color: #888888;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
   margin-bottom: 2px;
 }
 
+.muted-dark {
+  color: #888888;
+}
+
+.muted-light {
+  color: #5A6270;
+}
+
 .app-title {
-  color: #FFFFFF;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: bold;
+}
+
+.text-dark-theme {
+  color: #FFFFFF;
+}
+
+.text-light-theme {
+  color: #1D2733;
+}
+
+.nav-buttons {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.nav-btn {
+  font-size: 20px;
+  font-weight: bold;
+  padding: 9px 18px;
+  border-radius: 21px;
+  border: 1px solid;
+}
+
+.nav-btn-dark {
+  color: #3EA6FF;
+  background-color: #142231;
+  border-color: #2D4660;
+}
+
+.nav-btn-light {
+  color: #0B5FB3;
+  background-color: #E5F1FF;
+  border-color: #B7D7FA;
+}
+
+.reload-btn {
+  margin-left: 10px;
 }
 
 .title-card {
   width: 430px;
-  background-color: #0A0A0A;
-  border: 1px solid #222222;
+  border: 1px solid;
   border-radius: 12px;
   padding: 10px 14px;
-  box-sizing: border-box;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.card-dark {
+  background-color: #0A0A0A;
+  border-color: #222222;
+}
+
+.card-light {
+  background-color: #FFFFFF;
+  border-color: #DBE3EE;
 }
 
 .title-text {
-  color: #FFFFFF;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
   lines: 2;
   text-overflow: ellipsis;
 }
 
+.page-meta {
+  width: 430px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.page-meta-text {
+  font-size: 15px;
+  font-weight: bold;
+}
+
+.meta-dark {
+  color: #8FA7C4;
+}
+
+.meta-light {
+  color: #4F647A;
+}
+
 .loading-container,
 .error-container {
   width: 100%;
-  height: 280px;
+  height: 250px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 24px;
-  box-sizing: border-box;
 }
 
 .loading-text {
   color: #007AFF;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
 }
 
@@ -229,7 +567,7 @@ export default {
 
 .retry-button {
   color: #FFFFFF;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: bold;
   background-color: #007AFF;
   padding: 8px 20px;
@@ -237,23 +575,73 @@ export default {
   text-align: center;
 }
 
-.article-list {
-  width: 450px;
-  height: 280px;
-  padding: 0 10px;
-}
-
 .article-card {
-  background-color: #0A0A0A;
-  border: 1px solid #222222;
+  width: 430px;
+  height: 230px;
+  border: 1px solid;
   border-radius: 12px;
   padding: 12px;
-  box-sizing: border-box;
+  margin-bottom: 10px;
 }
 
 .article-content {
+  font-weight: 500;
+}
+
+.article-dark {
   color: #D9D9D9;
-  font-size: 14px;
-  line-height: 20px;
+}
+
+.article-light {
+  color: #2D3A48;
+}
+
+.article-content-small {
+  font-size: 15px;
+  line-height: 22px;
+  lines: 10;
+}
+
+.article-content-medium {
+  font-size: 17px;
+  line-height: 24px;
+  lines: 9;
+}
+
+.article-content-large {
+  font-size: 19px;
+  line-height: 26px;
+  lines: 8;
+}
+
+.pager-buttons {
+  width: 430px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.pager-btn {
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 18px;
+  padding: 9px 16px;
+}
+
+.pager-btn-dark {
+  color: #CFE4FF;
+  background-color: #142030;
+  border: 1px solid #2B3C50;
+}
+
+.pager-btn-light {
+  color: #0B5FB3;
+  background-color: #E8F2FF;
+  border: 1px solid #B7D7FA;
+}
+
+.disabled-btn {
+  color: #6D7785;
+  border-color: #2A2A2A;
+  background-color: #121212;
 }
 </style>
